@@ -4,7 +4,7 @@ dependencies {
     api project(':hookrouter-core')
 
     implementation libs.spring.boot.starter.web
-    annotationProcessor 'org.springframework.boot:spring-boot-configuration-processor'
+    annotationProcessor libs.spring.boot.configuration.processor
 
     implementation libs.spring.boot.micrometer.metrics
 
