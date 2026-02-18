@@ -1,5 +1,6 @@
 package io.github.limehee.hookrouter.spring.deadletter;
 
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doThrow;
@@ -450,6 +451,19 @@ class DeadLetterProcessorTest {
 
             verify(metrics).recordDeadLetter("slack", "slack-key", "test-type", "RATE_LIMITED");
             verify(metrics, never()).recordDeadLetterHandlerFailure(any(), any(), any());
+        }
+
+        @Test
+        void shouldNotThrowWhenMetricsRecordingFails() {
+            Notification<TestContext> notification = createNotification("test-type");
+            RoutingTarget target = createRoutingTarget("slack", "slack-key", "https://hooks.slack.com/test");
+            Map<String, Object> payload = Map.of("text", "Hello");
+
+            doThrow(new RuntimeException("metric error")).when(metrics)
+                .recordDeadLetter("slack", "slack-key", "test-type", "RATE_LIMITED");
+
+            assertDoesNotThrow(() -> processor.processRateLimited(notification, target, payload));
+            verify(deadLetterHandler).handle(any());
         }
     }
 }

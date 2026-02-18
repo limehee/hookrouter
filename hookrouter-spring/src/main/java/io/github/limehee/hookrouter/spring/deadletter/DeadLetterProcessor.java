@@ -11,6 +11,7 @@ import org.jspecify.annotations.Nullable;
 
 public class DeadLetterProcessor {
 
+    private static final System.Logger LOGGER = System.getLogger(DeadLetterProcessor.class.getName());
     private final DeadLetterHandler deadLetterHandler;
     private final WebhookMetrics metrics;
 
@@ -76,8 +77,11 @@ public class DeadLetterProcessor {
             deadLetterHandler.handle(deadLetter);
             handlerSuccess = true;
         } catch (Exception e) {
+            LOGGER.log(System.Logger.Level.WARNING,
+                "Dead-letter handler failed for typeId=" + typeId + ", platform=" + target.platform()
+                    + ", webhookKey=" + target.webhookKey(),
+                e);
         } finally {
-
             recordDeadLetterMetric(target, typeId, deadLetter.reason(), handlerSuccess);
         }
     }
@@ -90,7 +94,10 @@ public class DeadLetterProcessor {
                 metrics.recordDeadLetterHandlerFailure(target.platform(), target.webhookKey(), typeId);
             }
         } catch (Exception e) {
-
+            LOGGER.log(System.Logger.Level.WARNING,
+                "Dead-letter metric recording failed for typeId=" + typeId + ", platform=" + target.platform()
+                    + ", webhookKey=" + target.webhookKey() + ", reason=" + reason.name(),
+                e);
         }
     }
 }
