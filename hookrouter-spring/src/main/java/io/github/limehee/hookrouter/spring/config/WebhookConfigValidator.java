@@ -254,16 +254,25 @@ public final class WebhookConfigValidator {
 
         if (bulkhead.isEnabled()) {
             if (bulkhead.getMaxConcurrentCalls() > async.getMaxPoolSize()) {
+                errors.add("bulkhead.maxConcurrentCalls (" + bulkhead.getMaxConcurrentCalls()
+                    + ") must be <= async.maxPoolSize (" + async.getMaxPoolSize()
+                    + "). Current configuration allows more concurrent dispatch slots than async worker capacity");
             }
         }
 
         if (rateLimiter.isEnabled() && timeout.isEnabled()) {
             if (rateLimiter.getTimeoutDuration() > timeout.getDuration()) {
+                errors.add("rateLimiter.timeoutDuration (" + rateLimiter.getTimeoutDuration()
+                    + "ms) must be <= timeout.duration (" + timeout.getDuration()
+                    + "ms). Waiting for rate limiter permission longer than request timeout is ineffective");
             }
         }
 
         if (bulkhead.isEnabled() && timeout.isEnabled()) {
             if (bulkhead.getMaxWaitDuration() > timeout.getDuration()) {
+                errors.add("bulkhead.maxWaitDuration (" + bulkhead.getMaxWaitDuration()
+                    + "ms) must be <= timeout.duration (" + timeout.getDuration()
+                    + "ms). Waiting for bulkhead permission longer than request timeout is ineffective");
             }
         }
     }

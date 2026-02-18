@@ -184,6 +184,7 @@ class WebhookAutoConfigurationIntegrationTest {
                     "hookrouter.default-mappings[0].webhook=general-channel",
                     "hookrouter.platforms.slack.endpoints.general-channel.url=https://hooks.slack.com/test",
                     "hookrouter.bulkhead.enabled=true",
+                    "hookrouter.async.max-pool-size=50",
                     "hookrouter.bulkhead.max-concurrent-calls=50",
                     "hookrouter.bulkhead.max-wait-duration=1000"
                 )

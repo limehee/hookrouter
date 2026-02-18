@@ -892,5 +892,56 @@ class WebhookConfigValidatorTest {
             assertThatCode(() -> WebhookConfigValidator.validate(properties))
                 .doesNotThrowAnyException();
         }
+
+        @Test
+        void shouldThrowWebhookConfigValidationExceptionWhenBulkheadConcurrencyExceedsAsyncPool() {
+            properties.getBulkhead().setEnabled(true);
+            properties.getBulkhead().setMaxConcurrentCalls(20);
+            properties.getAsync().setMaxPoolSize(10);
+
+            assertThatThrownBy(() -> WebhookConfigValidator.validate(properties))
+                .isInstanceOf(WebhookConfigValidationException.class)
+                .hasMessageContaining("bulkhead.maxConcurrentCalls (20) must be <= async.maxPoolSize (10)");
+        }
+
+        @Test
+        void shouldThrowWebhookConfigValidationExceptionWhenRateLimiterTimeoutExceedsRequestTimeout() {
+            properties.getRateLimiter().setEnabled(true);
+            properties.getRateLimiter().setTimeoutDuration(6000);
+            properties.getTimeout().setEnabled(true);
+            properties.getTimeout().setDuration(5000);
+
+            assertThatThrownBy(() -> WebhookConfigValidator.validate(properties))
+                .isInstanceOf(WebhookConfigValidationException.class)
+                .hasMessageContaining("rateLimiter.timeoutDuration (6000ms) must be <= timeout.duration (5000ms)");
+        }
+
+        @Test
+        void shouldThrowWebhookConfigValidationExceptionWhenBulkheadWaitExceedsRequestTimeout() {
+            properties.getBulkhead().setEnabled(true);
+            properties.getBulkhead().setMaxWaitDuration(7000);
+            properties.getTimeout().setEnabled(true);
+            properties.getTimeout().setDuration(5000);
+
+            assertThatThrownBy(() -> WebhookConfigValidator.validate(properties))
+                .isInstanceOf(WebhookConfigValidationException.class)
+                .hasMessageContaining("bulkhead.maxWaitDuration (7000ms) must be <= timeout.duration (5000ms)");
+        }
+
+        @Test
+        void shouldNotThrowExceptionWhenCrossConfigurationThresholdsAreAligned() {
+            properties.getBulkhead().setEnabled(true);
+            properties.getBulkhead().setMaxConcurrentCalls(8);
+            properties.getBulkhead().setMaxWaitDuration(3000);
+            properties.getAsync().setMaxPoolSize(10);
+            properties.getRateLimiter().setEnabled(true);
+            properties.getRateLimiter().setTimeoutDuration(2000);
+            properties.getTimeout().setEnabled(true);
+            properties.getTimeout().setDuration(5000);
+            properties.getRetry().setEnabled(false);
+
+            assertThatCode(() -> WebhookConfigValidator.validate(properties))
+                .doesNotThrowAnyException();
+        }
     }
 }
