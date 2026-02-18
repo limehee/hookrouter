@@ -11,6 +11,7 @@ import org.springframework.beans.factory.InitializingBean;
 
 public class DeadLetterScheduler implements InitializingBean, DisposableBean {
 
+    private static final System.Logger LOGGER = System.getLogger(DeadLetterScheduler.class.getName());
     private final DeadLetterReprocessor reprocessor;
     private final WebhookConfigProperties properties;
     private final ScheduledExecutorService scheduler;
@@ -42,10 +43,7 @@ public class DeadLetterScheduler implements InitializingBean, DisposableBean {
         try {
             if (!scheduler.awaitTermination(30, TimeUnit.SECONDS)) {
                 scheduler.shutdownNow();
-
-                if (!scheduler.awaitTermination(10, TimeUnit.SECONDS)) {
-                }
-            } else {
+                scheduler.awaitTermination(10, TimeUnit.SECONDS);
             }
         } catch (InterruptedException e) {
             scheduler.shutdownNow();
@@ -58,6 +56,7 @@ public class DeadLetterScheduler implements InitializingBean, DisposableBean {
             int batchSize = properties.getDeadLetter().getSchedulerBatchSize();
             reprocessor.reprocessPending(batchSize);
         } catch (Exception e) {
+            LOGGER.log(System.Logger.Level.WARNING, "Dead-letter scheduled reprocessing failed", e);
         }
     }
 }
