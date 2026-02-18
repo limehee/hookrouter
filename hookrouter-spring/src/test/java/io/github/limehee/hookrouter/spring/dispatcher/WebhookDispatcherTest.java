@@ -1,5 +1,6 @@
 package io.github.limehee.hookrouter.spring.dispatcher;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
@@ -36,6 +37,8 @@ import io.github.resilience4j.timelimiter.TimeLimiterConfig;
 import io.github.resilience4j.timelimiter.TimeLimiterRegistry;
 import java.time.Duration;
 import java.util.Map;
+import java.util.concurrent.Executor;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -96,6 +99,10 @@ class WebhookDispatcherTest {
     }
 
     private WebhookDispatcher createDispatcher() {
+        return createDispatcher(Runnable::run);
+    }
+
+    private WebhookDispatcher createDispatcher(Executor webhookTaskExecutor) {
         configResolver = new WebhookConfigResolver(configProperties);
         return new WebhookDispatcher(
             configResolver,
@@ -104,7 +111,7 @@ class WebhookDispatcherTest {
             timeLimiterRegistry,
             rateLimiterRegistry,
             bulkheadRegistry,
-            Runnable::run,
+            webhookTaskExecutor,
             metrics,
             deadLetterProcessor,
             eventPublisher
@@ -278,6 +285,31 @@ class WebhookDispatcherTest {
                     eq(notification), eq(target), eq(payload), eq(failureResult), eq(1));
                 verify(metrics).recordSendFailure(
                     eq("slack"), eq("slack-key"), eq("test-type"), eq("Internal Server Error"), any(Duration.class));
+            }
+
+            @Test
+            void shouldHandleSenderExceptionAsDeadLetter() {
+                configProperties.getRetry().setEnabled(false);
+                dispatcher = createDispatcher();
+
+                Notification<TestContext> notification = createNotification("test-type");
+                RoutingTarget target = createRoutingTarget("slack", "slack-key", "https://hooks.slack.com/test");
+                Map<String, Object> payload = Map.of("text", "Hello");
+
+                RuntimeException sendException = new RuntimeException("boom");
+                given(slackSender.send(anyString(), any())).willThrow(sendException);
+
+                dispatcher.dispatch(notification, target, slackSender, payload);
+
+                verify(deadLetterProcessor).processException(eq(notification), eq(target), eq(payload),
+                    eq(sendException));
+                verify(metrics).recordSendFailure(
+                    eq("slack"),
+                    eq("slack-key"),
+                    eq("test-type"),
+                    eq("exception: boom"),
+                    any(Duration.class)
+                );
             }
         }
 
@@ -472,7 +504,8 @@ class WebhookDispatcherTest {
                 RoutingTarget target = createRoutingTarget("slack", "slack-key", "https://hooks.slack.com/test");
                 Map<String, Object> payload = Map.of("text", "Hello");
 
-                CircuitBreaker circuitBreaker = circuitBreakerRegistry.circuitBreaker(resilienceKey("slack", "slack-key"));
+                CircuitBreaker circuitBreaker = circuitBreakerRegistry.circuitBreaker(
+                    resilienceKey("slack", "slack-key"));
                 circuitBreaker.transitionToOpenState();
 
                 // When
@@ -533,6 +566,31 @@ class WebhookDispatcherTest {
             }
 
             @Test
+            void shouldRecordRetryOncePerDispatchWithoutAccumulation() {
+                configProperties.getRetry().setEnabled(true);
+                configProperties.getRetry().setMaxAttempts(2);
+                configProperties.getRetry().setInitialDelay(1);
+                configProperties.getRetry().setJitterFactor(0.0);
+                retryRegistry = WebhookRetryFactory.createRegistry(configProperties.getRetry());
+                dispatcher = createDispatcher();
+
+                Notification<TestContext> notification = createNotification("test-type");
+                RoutingTarget target = createRoutingTarget("slack", "slack-key", "https://hooks.slack.com/test");
+                Map<String, Object> payload = Map.of("text", "Hello");
+
+                given(slackSender.send(anyString(), any()))
+                    .willReturn(SendResult.failure(503, "Service Unavailable", true))
+                    .willReturn(SendResult.success(200))
+                    .willReturn(SendResult.failure(503, "Service Unavailable", true))
+                    .willReturn(SendResult.success(200));
+
+                dispatcher.dispatch(notification, target, slackSender, payload);
+                dispatcher.dispatch(notification, target, slackSender, payload);
+
+                verify(metrics, times(2)).recordRetry("slack", "slack-key", "test-type", 1);
+            }
+
+            @Test
             void shouldInvokeExpectedInteractionsWhenEnabledIsTrueWithEnabledTrue() {
                 // Given
                 configProperties.getRetry().setEnabled(true);
@@ -553,6 +611,36 @@ class WebhookDispatcherTest {
                 verify(slackSender, times(1)).send(anyString(), any());
                 verify(deadLetterProcessor).processSendFailure(
                     eq(notification), eq(target), eq(payload), eq(nonRetryableFailure), eq(1));
+            }
+        }
+
+        @Nested
+        class TimeoutTest {
+
+            @Test
+            void shouldExecuteTimeoutWrappedSendOnProvidedExecutor() {
+                configProperties.getRetry().setEnabled(false);
+                configProperties.getTimeout().setEnabled(true);
+                configProperties.getTimeout().setDuration(1000);
+                timeLimiterRegistry = createTimeLimiterRegistry();
+
+                AtomicInteger executorInvocationCount = new AtomicInteger(0);
+                Executor countingExecutor = runnable -> {
+                    executorInvocationCount.incrementAndGet();
+                    runnable.run();
+                };
+                dispatcher = createDispatcher(countingExecutor);
+
+                Notification<TestContext> notification = createNotification("test-type");
+                RoutingTarget target = createRoutingTarget("slack", "slack-key", "https://hooks.slack.com/test");
+                Map<String, Object> payload = Map.of("text", "Hello");
+
+                given(slackSender.send(anyString(), any())).willReturn(SendResult.success(200));
+
+                dispatcher.dispatch(notification, target, slackSender, payload);
+
+                assertThat(executorInvocationCount.get()).isEqualTo(1);
+                verify(slackSender, times(1)).send(anyString(), any());
             }
         }
     }
