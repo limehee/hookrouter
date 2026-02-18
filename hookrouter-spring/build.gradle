@@ -1,0 +1,19 @@
+description = 'Spring Boot integration for hookrouter with routing, resilience, and metrics'
+
+dependencies {
+    api project(':hookrouter-core')
+
+    implementation libs.spring.boot.starter.web
+    annotationProcessor 'org.springframework.boot:spring-boot-configuration-processor'
+
+    implementation libs.spring.boot.micrometer.metrics
+
+    implementation libs.resilience4j.circuitbreaker
+    implementation libs.resilience4j.retry
+    implementation libs.resilience4j.timelimiter
+    implementation libs.resilience4j.ratelimiter
+    implementation libs.resilience4j.bulkhead
+    implementation libs.resilience4j.micrometer
+
+    implementation libs.spring.boot.starter.actuator
+}

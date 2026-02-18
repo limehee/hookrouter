@@ -1,0 +1,26 @@
+plugins {
+    id 'java'
+}
+
+group = 'io.github.limehee.samples'
+version = '0.0.1-SNAPSHOT'
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation 'io.github.limehee:hookrouter-core:0.1.0-SNAPSHOT'
+    testImplementation 'org.junit.jupiter:junit-jupiter:6.0.2'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher:6.0.2'
+}
+
+tasks.withType(Test).configureEach {
+    useJUnitPlatform()
+}

@@ -1,0 +1,198 @@
+package io.github.limehee.hookrouter.spring.async;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.BDDMockito.given;
+
+import io.github.limehee.hookrouter.spring.config.WebhookConfigProperties;
+import io.github.limehee.hookrouter.spring.config.WebhookConfigProperties.AsyncProperties;
+import java.util.concurrent.Executor;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.core.env.Environment;
+import org.springframework.core.task.SimpleAsyncTaskExecutor;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
+
+@ExtendWith(MockitoExtension.class)
+class WebhookAsyncConfigTest {
+
+    private static final String VIRTUAL_THREADS_PROPERTY = "spring.threads.virtual.enabled";
+
+    @InjectMocks
+    private WebhookAsyncConfig config;
+
+    @Mock
+    private WebhookConfigProperties configProperties;
+
+    @Mock
+    private Environment environment;
+
+    private AsyncProperties createDefaultAsyncProperties() {
+        AsyncProperties async = new AsyncProperties();
+        async.setCorePoolSize(2);
+        async.setMaxPoolSize(10);
+        async.setQueueCapacity(100);
+        async.setThreadNamePrefix("hookrouter-");
+        async.setAwaitTerminationSeconds(30);
+        return async;
+    }
+
+    @Nested
+    class PlatformThreadExecutorTest {
+
+        @Test
+        void shouldReturnNotNullExecutor() {
+            // Given
+            given(environment.getProperty(VIRTUAL_THREADS_PROPERTY, Boolean.class, false))
+                .willReturn(false);
+            given(configProperties.getAsync()).willReturn(createDefaultAsyncProperties());
+
+            // When
+            Executor executor = config.webhookTaskExecutor();
+
+            // Then
+            assertThat(executor).isNotNull();
+            assertThat(executor).isInstanceOf(ThreadPoolTaskExecutor.class);
+        }
+
+        @Test
+        void shouldMatchExpectedExecutorCorePoolSize() {
+            // Given
+            AsyncProperties async = createDefaultAsyncProperties();
+            async.setCorePoolSize(4);
+            given(environment.getProperty(VIRTUAL_THREADS_PROPERTY, Boolean.class, false))
+                .willReturn(false);
+            given(configProperties.getAsync()).willReturn(async);
+
+            // When
+            ThreadPoolTaskExecutor executor = (ThreadPoolTaskExecutor) config.webhookTaskExecutor();
+
+            // Then
+            assertThat(executor.getCorePoolSize()).isEqualTo(4);
+        }
+
+        @Test
+        void shouldMatchExpectedExecutorMaxPoolSize() {
+            // Given
+            AsyncProperties async = createDefaultAsyncProperties();
+            async.setMaxPoolSize(20);
+            given(environment.getProperty(VIRTUAL_THREADS_PROPERTY, Boolean.class, false))
+                .willReturn(false);
+            given(configProperties.getAsync()).willReturn(async);
+
+            // When
+            ThreadPoolTaskExecutor executor = (ThreadPoolTaskExecutor) config.webhookTaskExecutor();
+
+            // Then
+            assertThat(executor.getMaxPoolSize()).isEqualTo(20);
+        }
+
+        @Test
+        void shouldMatchExpectedExecutorThreadNamePrefix() {
+            // Given
+            AsyncProperties async = createDefaultAsyncProperties();
+            async.setThreadNamePrefix("custom-hookrouter-");
+            given(environment.getProperty(VIRTUAL_THREADS_PROPERTY, Boolean.class, false))
+                .willReturn(false);
+            given(configProperties.getAsync()).willReturn(async);
+
+            // When
+            ThreadPoolTaskExecutor executor = (ThreadPoolTaskExecutor) config.webhookTaskExecutor();
+
+            // Then
+            assertThat(executor.getThreadNamePrefix()).isEqualTo("custom-hookrouter-");
+        }
+
+        @Test
+        void shouldMatchExpectedExecutorQueueCapacity() {
+            // Given
+            AsyncProperties async = createDefaultAsyncProperties();
+            async.setQueueCapacity(200);
+            given(environment.getProperty(VIRTUAL_THREADS_PROPERTY, Boolean.class, false))
+                .willReturn(false);
+            given(configProperties.getAsync()).willReturn(async);
+
+            // When
+            ThreadPoolTaskExecutor executor = (ThreadPoolTaskExecutor) config.webhookTaskExecutor();
+
+            // Then
+            assertThat(executor.getQueueCapacity()).isEqualTo(200);
+        }
+
+        @Test
+        void shouldMatchExpectedExecutorCorePoolSizeWhenExecutorPropertyIsApplied() {
+            // Given
+            given(environment.getProperty(VIRTUAL_THREADS_PROPERTY, Boolean.class, false))
+                .willReturn(false);
+            given(configProperties.getAsync()).willReturn(createDefaultAsyncProperties());
+
+            // When
+            ThreadPoolTaskExecutor executor = (ThreadPoolTaskExecutor) config.webhookTaskExecutor();
+
+            // Then
+            assertThat(executor.getCorePoolSize()).isEqualTo(2);
+            assertThat(executor.getMaxPoolSize()).isEqualTo(10);
+            assertThat(executor.getQueueCapacity()).isEqualTo(100);
+            assertThat(executor.getThreadNamePrefix()).isEqualTo("hookrouter-");
+        }
+    }
+
+    @Nested
+    class VirtualThreadExecutorTest {
+
+        @Test
+        void shouldReturnNotNullExecutorWhenExecutorPropertyIsApplied() {
+            // Given
+            given(environment.getProperty(VIRTUAL_THREADS_PROPERTY, Boolean.class, false))
+                .willReturn(true);
+            given(configProperties.getAsync()).willReturn(createDefaultAsyncProperties());
+
+            // When
+            Executor executor = config.webhookTaskExecutor();
+
+            // Then
+            assertThat(executor).isNotNull();
+            assertThat(executor).isInstanceOf(SimpleAsyncTaskExecutor.class);
+        }
+
+        @Test
+        void shouldMatchExpectedExecutorThreadNamePrefixWhenThreadNamePrefix() {
+            // Given
+            AsyncProperties async = createDefaultAsyncProperties();
+            async.setThreadNamePrefix("virtual-hookrouter-");
+            given(environment.getProperty(VIRTUAL_THREADS_PROPERTY, Boolean.class, false))
+                .willReturn(true);
+            given(configProperties.getAsync()).willReturn(async);
+
+            // When
+            SimpleAsyncTaskExecutor executor =
+                (SimpleAsyncTaskExecutor) config.webhookTaskExecutor();
+
+            // Then
+            assertThat(executor.getThreadNamePrefix()).isEqualTo("virtual-hookrouter-");
+        }
+
+        @Test
+        void shouldReturnNotNullExecutorWhenAwaitTerminationSecondsIsPositive() {
+            // Given
+            AsyncProperties async = createDefaultAsyncProperties();
+            async.setAwaitTerminationSeconds(60);
+            given(environment.getProperty(VIRTUAL_THREADS_PROPERTY, Boolean.class, false))
+                .willReturn(true);
+            given(configProperties.getAsync()).willReturn(async);
+
+            // When
+            SimpleAsyncTaskExecutor executor =
+                (SimpleAsyncTaskExecutor) config.webhookTaskExecutor();
+
+            // Then
+
+            assertThat(executor).isNotNull();
+            assertThat(executor.isActive()).isTrue();
+        }
+    }
+}

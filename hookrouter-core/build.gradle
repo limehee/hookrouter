@@ -1,0 +1,5 @@
+description = 'Core webhook domain model, registry, and extension contracts'
+
+dependencies {
+    implementation libs.buildtools.jspecify
+}

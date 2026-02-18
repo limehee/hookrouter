@@ -1,0 +1,256 @@
+{
+  "properties": [
+    {
+      "name": "hookrouter.platforms",
+      "type": "java.util.Map<java.lang.String,io.github.limehee.hookrouter.spring.config.WebhookConfigProperties$PlatformConfig>",
+      "description": "Platform registry. Each key is a platform id and contains endpoints keyed by webhook id."
+    },
+    {
+      "name": "hookrouter.type-mappings",
+      "type": "java.util.Map<java.lang.String,java.util.List<io.github.limehee.hookrouter.spring.config.WebhookConfigProperties$PlatformMapping>>",
+      "description": "Highest-priority routing map keyed by notification type id."
+    },
+    {
+      "name": "hookrouter.category-mappings",
+      "type": "java.util.Map<java.lang.String,java.util.List<io.github.limehee.hookrouter.spring.config.WebhookConfigProperties$PlatformMapping>>",
+      "description": "Second-priority routing map keyed by notification category."
+    },
+    {
+      "name": "hookrouter.default-mappings",
+      "type": "java.util.List<io.github.limehee.hookrouter.spring.config.WebhookConfigProperties$PlatformMapping>",
+      "description": "Fallback routes when type/category mappings do not match."
+    },
+    {
+      "name": "hookrouter.retry.enabled",
+      "type": "java.lang.Boolean",
+      "defaultValue": true,
+      "description": "Enable retry for webhook delivery."
+    },
+    {
+      "name": "hookrouter.retry.max-attempts",
+      "type": "java.lang.Integer",
+      "defaultValue": 3,
+      "description": "Maximum retry attempts. Must be greater than 0."
+    },
+    {
+      "name": "hookrouter.retry.initial-delay",
+      "type": "java.lang.Long",
+      "defaultValue": 1000,
+      "description": "Initial retry delay in milliseconds. Must be greater than 0."
+    },
+    {
+      "name": "hookrouter.retry.max-delay",
+      "type": "java.lang.Long",
+      "defaultValue": 10000,
+      "description": "Maximum retry delay in milliseconds. Must be greater than 0 and >= initial-delay."
+    },
+    {
+      "name": "hookrouter.retry.multiplier",
+      "type": "java.lang.Double",
+      "defaultValue": 2.0,
+      "description": "Exponential backoff multiplier. Must be >= 1.0."
+    },
+    {
+      "name": "hookrouter.retry.jitter-factor",
+      "type": "java.lang.Double",
+      "defaultValue": 0.1,
+      "description": "Jitter factor in [0.0, 1.0]."
+    },
+    {
+      "name": "hookrouter.timeout.enabled",
+      "type": "java.lang.Boolean",
+      "defaultValue": true,
+      "description": "Enable timeout guard for webhook delivery."
+    },
+    {
+      "name": "hookrouter.timeout.duration",
+      "type": "java.lang.Long",
+      "defaultValue": 15000,
+      "description": "Timeout in milliseconds. Must be greater than 0."
+    },
+    {
+      "name": "hookrouter.circuit-breaker.enabled",
+      "type": "java.lang.Boolean",
+      "defaultValue": true,
+      "description": "Enable circuit breaker protection."
+    },
+    {
+      "name": "hookrouter.circuit-breaker.failure-threshold",
+      "type": "java.lang.Integer",
+      "defaultValue": 5,
+      "description": "Sliding failure count threshold. Must be greater than 0."
+    },
+    {
+      "name": "hookrouter.circuit-breaker.failure-rate-threshold",
+      "type": "java.lang.Float",
+      "defaultValue": 100.0,
+      "description": "Failure rate threshold percentage in (0, 100]."
+    },
+    {
+      "name": "hookrouter.circuit-breaker.wait-duration",
+      "type": "java.lang.Long",
+      "defaultValue": 60000,
+      "description": "Open-state wait duration in milliseconds. Must be greater than 0."
+    },
+    {
+      "name": "hookrouter.circuit-breaker.success-threshold",
+      "type": "java.lang.Integer",
+      "defaultValue": 2,
+      "description": "Required successful calls in half-open state. Must be greater than 0."
+    },
+    {
+      "name": "hookrouter.rate-limiter.enabled",
+      "type": "java.lang.Boolean",
+      "defaultValue": false,
+      "description": "Enable rate limiting."
+    },
+    {
+      "name": "hookrouter.rate-limiter.limit-for-period",
+      "type": "java.lang.Integer",
+      "defaultValue": 50,
+      "description": "Permits per refresh period. Must be greater than 0."
+    },
+    {
+      "name": "hookrouter.rate-limiter.limit-refresh-period",
+      "type": "java.lang.Long",
+      "defaultValue": 1000,
+      "description": "Refresh period in milliseconds. Must be greater than 0."
+    },
+    {
+      "name": "hookrouter.rate-limiter.timeout-duration",
+      "type": "java.lang.Long",
+      "defaultValue": 5000,
+      "description": "Permit acquisition timeout in milliseconds. Must be >= 0."
+    },
+    {
+      "name": "hookrouter.bulkhead.enabled",
+      "type": "java.lang.Boolean",
+      "defaultValue": false,
+      "description": "Enable bulkhead isolation."
+    },
+    {
+      "name": "hookrouter.bulkhead.max-concurrent-calls",
+      "type": "java.lang.Integer",
+      "defaultValue": 25,
+      "description": "Maximum concurrent calls. Must be greater than 0."
+    },
+    {
+      "name": "hookrouter.bulkhead.max-wait-duration",
+      "type": "java.lang.Long",
+      "defaultValue": 0,
+      "description": "Bulkhead wait duration in milliseconds. Must be >= 0."
+    },
+    {
+      "name": "hookrouter.dead-letter.enabled",
+      "type": "java.lang.Boolean",
+      "defaultValue": true,
+      "description": "Enable dead-letter queue processing."
+    },
+    {
+      "name": "hookrouter.dead-letter.max-retries",
+      "type": "java.lang.Integer",
+      "defaultValue": 3,
+      "description": "Maximum reprocessing retries before dropping or parking events."
+    },
+    {
+      "name": "hookrouter.dead-letter.scheduler-enabled",
+      "type": "java.lang.Boolean",
+      "defaultValue": false,
+      "description": "Enable scheduled dead-letter draining."
+    },
+    {
+      "name": "hookrouter.dead-letter.scheduler-interval",
+      "type": "java.lang.Long",
+      "defaultValue": 60000,
+      "description": "Scheduler interval in milliseconds. Must be greater than 0."
+    },
+    {
+      "name": "hookrouter.dead-letter.scheduler-batch-size",
+      "type": "java.lang.Integer",
+      "defaultValue": 50,
+      "description": "Maximum items processed per schedule run. Must be greater than 0."
+    },
+    {
+      "name": "hookrouter.async.core-pool-size",
+      "type": "java.lang.Integer",
+      "defaultValue": 2,
+      "description": "Async executor core pool size. Must be greater than 0."
+    },
+    {
+      "name": "hookrouter.async.max-pool-size",
+      "type": "java.lang.Integer",
+      "defaultValue": 10,
+      "description": "Async executor max pool size. Must be greater than 0 and >= core-pool-size."
+    },
+    {
+      "name": "hookrouter.async.queue-capacity",
+      "type": "java.lang.Integer",
+      "defaultValue": 100,
+      "description": "Async executor queue capacity. Must be greater than 0."
+    },
+    {
+      "name": "hookrouter.async.thread-name-prefix",
+      "type": "java.lang.String",
+      "defaultValue": "hookrouter-",
+      "description": "Thread name prefix for the async executor. Must not be blank."
+    },
+    {
+      "name": "hookrouter.async.await-termination-seconds",
+      "type": "java.lang.Integer",
+      "defaultValue": 30,
+      "description": "Shutdown await timeout in seconds. Must be >= 0."
+    }
+  ],
+  "hints": [
+    {
+      "name": "hookrouter.async.thread-name-prefix",
+      "values": [
+        {
+          "value": "hookrouter-"
+        },
+        {
+          "value": "webhook-"
+        }
+      ]
+    },
+    {
+      "name": "hookrouter.retry.multiplier",
+      "values": [
+        {
+          "value": 1.5
+        },
+        {
+          "value": 2.0
+        }
+      ]
+    },
+    {
+      "name": "hookrouter.retry.jitter-factor",
+      "values": [
+        {
+          "value": 0.0
+        },
+        {
+          "value": 0.1
+        },
+        {
+          "value": 0.2
+        }
+      ]
+    },
+    {
+      "name": "hookrouter.timeout.duration",
+      "values": [
+        {
+          "value": 1000
+        },
+        {
+          "value": 3000
+        },
+        {
+          "value": 5000
+        }
+      ]
+    }
+  ]
+}

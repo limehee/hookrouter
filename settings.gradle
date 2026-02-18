@@ -1,0 +1,3 @@
+rootProject.name = 'hookrouter'
+
+include ':hookrouter-core', ':hookrouter-spring'

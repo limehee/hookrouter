@@ -1,0 +1,35 @@
+hookrouter:
+  retry:
+    enabled: false
+  timeout:
+    enabled: false
+  circuit-breaker:
+    enabled: false
+  rate-limiter:
+    enabled: false
+  bulkhead:
+    enabled: false
+  dead-letter:
+    enabled: false
+  platforms:
+    slack:
+      endpoints:
+        critical:
+          url: "https://example.test/slack/critical"
+        general:
+          url: "https://example.test/slack/general"
+    discord:
+      endpoints:
+        ops:
+          url: "https://example.test/discord/ops"
+  type-mappings:
+    order.failed:
+      - platform: "slack"
+        webhook: "critical"
+  category-mappings:
+    ops:
+      - platform: "discord"
+        webhook: "ops"
+  default-mappings:
+    - platform: "slack"
+      webhook: "general"

@@ -1,0 +1,209 @@
+import me.champeau.gradle.japicmp.JapicmpTask
+
+plugins {
+    id 'base'
+    id 'me.champeau.gradle.japicmp' version '0.4.6' apply false
+}
+
+allprojects {
+    repositories {
+        mavenCentral()
+    }
+}
+
+subprojects {
+    apply plugin: 'java-library'
+    apply plugin: 'maven-publish'
+    apply plugin: 'signing'
+
+    java {
+        toolchain {
+            languageVersion = JavaLanguageVersion.of(21)
+        }
+        withSourcesJar()
+        withJavadocJar()
+    }
+
+    dependencies {
+        implementation platform(libs.spring.boot.bom)
+        testImplementation platform(libs.spring.boot.bom)
+        annotationProcessor platform(libs.spring.boot.bom)
+
+        testImplementation libs.spring.boot.starter.test
+        testRuntimeOnly libs.test.junit.platform.launcher
+        compileOnly libs.buildtools.jspecify
+    }
+
+    tasks.withType(JavaCompile).configureEach {
+        options.encoding = 'UTF-8'
+        options.compilerArgs += ['-parameters']
+    }
+
+    tasks.withType(Test).configureEach {
+        useJUnitPlatform()
+    }
+
+    def hasIntegrationTestSources = file('src/integrationTest/java').exists() || file('src/integrationTest/resources').exists()
+    if (hasIntegrationTestSources) {
+        def integrationTestSourceSet = sourceSets.create('integrationTest') {
+            java.srcDir file('src/integrationTest/java')
+            resources.srcDir file('src/integrationTest/resources')
+            compileClasspath += sourceSets.main.output + configurations.testRuntimeClasspath
+            runtimeClasspath += output + compileClasspath
+        }
+        configurations {
+            integrationTestImplementation.extendsFrom(testImplementation)
+            integrationTestRuntimeOnly.extendsFrom(testRuntimeOnly)
+        }
+        tasks.register('integrationTest', Test) {
+            description = 'Runs integration tests.'
+            group = 'verification'
+            testClassesDirs = integrationTestSourceSet.output.classesDirs
+            classpath = integrationTestSourceSet.runtimeClasspath
+            shouldRunAfter(tasks.named('test'))
+        }
+        tasks.named('check') {
+            dependsOn(tasks.named('integrationTest'))
+        }
+    }
+
+    def hasE2eTestSources = file('src/e2eTest/java').exists() || file('src/e2eTest/resources').exists()
+    if (hasE2eTestSources) {
+        def e2eTestSourceSet = sourceSets.create('e2eTest') {
+            java.srcDir file('src/e2eTest/java')
+            resources.srcDir file('src/e2eTest/resources')
+            compileClasspath += sourceSets.main.output + configurations.testRuntimeClasspath
+            runtimeClasspath += output + compileClasspath
+        }
+        configurations {
+            e2eTestImplementation.extendsFrom(testImplementation)
+            e2eTestRuntimeOnly.extendsFrom(testRuntimeOnly)
+        }
+        tasks.register('e2eTest', Test) {
+            description = 'Runs end-to-end tests.'
+            group = 'verification'
+            testClassesDirs = e2eTestSourceSet.output.classesDirs
+            classpath = e2eTestSourceSet.runtimeClasspath
+            if (hasIntegrationTestSources) {
+                shouldRunAfter(tasks.named('integrationTest'))
+            } else {
+                shouldRunAfter(tasks.named('test'))
+            }
+        }
+        tasks.named('check') {
+            dependsOn(tasks.named('e2eTest'))
+        }
+    }
+
+    publishing {
+        publications {
+            mavenJava(MavenPublication) {
+                from components.java
+                versionMapping {
+                    usage('java-api') {
+                        fromResolutionOf('runtimeClasspath')
+                    }
+                    usage('java-runtime') {
+                        fromResolutionResult()
+                    }
+                }
+                pom {
+                    name = project.name
+                    description = 'Webhook routing and notification library for Spring Boot'
+                    url = 'https://github.com/limehee/hookrouter'
+                    licenses {
+                        license {
+                            name = 'The Apache License, Version 2.0'
+                            url = 'https://www.apache.org/licenses/LICENSE-2.0.txt'
+                        }
+                    }
+                    developers {
+                        developer {
+                            id = 'limehee'
+                            name = 'limehee'
+                        }
+                    }
+                    scm {
+                        url = 'https://github.com/limehee/hookrouter'
+                        connection = 'scm:git:git://github.com/limehee/hookrouter.git'
+                        developerConnection = 'scm:git:ssh://github.com/limehee/hookrouter.git'
+                    }
+                }
+            }
+        }
+        repositories {
+            maven {
+                name = 'central'
+                def releasesRepoUrl = uri('https://ossrh-staging-api.central.sonatype.com/service/local/staging/deploy/maven2/')
+                def snapshotsRepoUrl = uri('https://central.sonatype.com/repository/maven-snapshots/')
+                url = version.toString().endsWith('SNAPSHOT') ? snapshotsRepoUrl : releasesRepoUrl
+                credentials {
+                    username = findProperty('ossrhUsername') ?: System.getenv('OSSRH_USERNAME')
+                    password = findProperty('ossrhPassword') ?: System.getenv('OSSRH_PASSWORD')
+                }
+            }
+        }
+    }
+
+    signing {
+        def signingKey = findProperty('signingKey') ?: System.getenv('SIGNING_KEY')
+        def signingPassword = findProperty('signingPassword') ?: System.getenv('SIGNING_PASSWORD')
+        if (signingKey && signingPassword) {
+            useInMemoryPgpKeys(signingKey, signingPassword)
+        }
+        def publishRequested = gradle.startParameter.taskNames.any { taskName ->
+            def lower = taskName.toLowerCase()
+            lower.contains('publish') && !lower.contains('mavenlocal')
+        }
+        required = !version.toString().endsWith('SNAPSHOT') && publishRequested
+        sign publishing.publications
+    }
+}
+
+def publishedApiModules = [
+    project(':hookrouter-core'),
+    project(':hookrouter-spring')
+]
+def apiBaselineVersionProvider = providers.gradleProperty('apiBaselineVersion')
+
+configure(publishedApiModules) {
+    apply plugin: 'me.champeau.gradle.japicmp'
+
+    configurations {
+        apiCompatBaseline
+    }
+
+    if (apiBaselineVersionProvider.present) {
+        dependencies {
+            apiCompatBaseline("${project.group}:${project.name}:${apiBaselineVersionProvider.get()}") {
+                transitive = false
+            }
+        }
+    }
+
+    tasks.register('apiCompatCheck', JapicmpTask) {
+        group = 'verification'
+        description = "Checks binary API compatibility for ${project.path} against -PapiBaselineVersion"
+        dependsOn tasks.named('jar')
+        dependsOn publishedApiModules.collect { it.tasks.named('jar') }
+        onlyIf { apiBaselineVersionProvider.present }
+        oldClasspath.from(configurations.apiCompatBaseline)
+        newClasspath.from(tasks.named('jar').flatMap { it.archiveFile })
+        onlyModified = true
+        onlyBinaryIncompatibleModified = true
+        ignoreMissingClasses = true
+        failOnModification = true
+        txtOutputFile = layout.buildDirectory.file("reports/japicmp/${project.name}.txt").get().asFile
+    }
+}
+
+tasks.register('apiCompat') {
+    group = 'verification'
+    description = 'Runs binary API compatibility checks for all published modules (requires -PapiBaselineVersion).'
+    dependsOn publishedApiModules.collect { it.tasks.named('apiCompatCheck') }
+    doFirst {
+        if (!apiBaselineVersionProvider.present) {
+            logger.lifecycle('Skipping apiCompat: set -PapiBaselineVersion=x.y.z to enable compatibility checks.')
+        }
+    }
+}

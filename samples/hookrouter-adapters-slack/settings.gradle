@@ -1,0 +1,8 @@
+rootProject.name = 'hookrouter-adapters-slack'
+
+includeBuild('../..') {
+    dependencySubstitution {
+        substitute(module('io.github.limehee:hookrouter-core')).using(project(':hookrouter-core'))
+        substitute(module('io.github.limehee:hookrouter-spring')).using(project(':hookrouter-spring'))
+    }
+}

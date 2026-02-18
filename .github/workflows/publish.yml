@@ -1,0 +1,124 @@
+name: Publish
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6.0.2
+        with:
+          fetch-depth: 0
+
+      - name: Setup JDK
+        uses: actions/setup-java@v5.2.0
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v5.0.1
+
+      - name: API Compatibility Check
+        shell: bash
+        run: |
+          CURRENT_TAG="${GITHUB_REF_NAME}"
+          BASELINE_TAG=$(git tag --list 'v*' --sort=-v:refname | grep -Fxv "${CURRENT_TAG}" | head -n 1 || true)
+          if [ -z "${BASELINE_TAG}" ]; then
+            echo "No previous release tag found. Skipping apiCompat."
+            exit 0
+          fi
+          BASELINE_VERSION="${BASELINE_TAG#v}"
+          echo "Comparing against baseline version: ${BASELINE_VERSION}"
+          ./gradlew --no-daemon --configuration-cache apiCompat -PapiBaselineVersion="${BASELINE_VERSION}"
+
+      - name: Publish Artifacts
+        env:
+          OSSRH_USERNAME: ${{ secrets.OSSRH_USERNAME }}
+          OSSRH_PASSWORD: ${{ secrets.OSSRH_PASSWORD }}
+          SIGNING_KEY: ${{ secrets.SIGNING_KEY }}
+          SIGNING_PASSWORD: ${{ secrets.SIGNING_PASSWORD }}
+        run: ./gradlew --no-daemon --configuration-cache publish
+
+      - name: Finalize Deployment In Central Portal
+        id: central_finalize
+        shell: bash
+        env:
+          OSSRH_USERNAME: ${{ secrets.OSSRH_USERNAME }}
+          OSSRH_PASSWORD: ${{ secrets.OSSRH_PASSWORD }}
+        run: |
+          NAMESPACE=$(grep '^group=' gradle.properties | cut -d= -f2)
+          if [ -z "${NAMESPACE}" ]; then
+            echo "Unable to resolve namespace from gradle.properties group."
+            exit 1
+          fi
+
+          RESPONSE=$(curl -sS -w '\n%{http_code}' \
+            -u "${OSSRH_USERNAME}:${OSSRH_PASSWORD}" \
+            -X POST \
+            "https://ossrh-staging-api.central.sonatype.com/manual/upload/defaultRepository/${NAMESPACE}?publishing_type=automatic")
+          BODY=$(echo "${RESPONSE}" | sed '$d')
+          STATUS=$(echo "${RESPONSE}" | tail -n 1)
+
+          echo "Central finalize HTTP status: ${STATUS}"
+          echo "${BODY}"
+
+          if [ "${STATUS}" -lt 200 ] || [ "${STATUS}" -ge 300 ]; then
+            echo "Failed to finalize deployment in Central Portal."
+            exit 1
+          fi
+
+          DEPLOYMENT_ID=$(echo "${BODY}" | jq -r 'if type=="object" then (.deploymentId // .id // "") elif type=="string" then . else "" end' 2>/dev/null || true)
+          if [ -z "${DEPLOYMENT_ID}" ]; then
+            DEPLOYMENT_ID=$(echo "${BODY}" | grep -Eo '[0-9a-fA-F-]{36}' | head -n 1 || true)
+          fi
+
+          if [ -n "${DEPLOYMENT_ID}" ]; then
+            echo "Central deployment id: ${DEPLOYMENT_ID}"
+            echo "deployment_id=${DEPLOYMENT_ID}" >> "${GITHUB_OUTPUT}"
+          else
+            echo "No deployment id found in finalize response. Skipping publish-state polling."
+          fi
+
+      - name: Wait For Central Publication
+        if: steps.central_finalize.outputs.deployment_id != ''
+        shell: bash
+        env:
+          OSSRH_USERNAME: ${{ secrets.OSSRH_USERNAME }}
+          OSSRH_PASSWORD: ${{ secrets.OSSRH_PASSWORD }}
+          DEPLOYMENT_ID: ${{ steps.central_finalize.outputs.deployment_id }}
+        run: |
+          TOKEN=$(printf '%s:%s' "${OSSRH_USERNAME}" "${OSSRH_PASSWORD}" | base64 | tr -d '\n')
+          for i in $(seq 1 40); do
+            STATUS_JSON=$(curl -sS \
+              --request POST \
+              --url "https://central.sonatype.com/api/v1/publisher/status?id=${DEPLOYMENT_ID}" \
+              --header "Authorization: Bearer ${TOKEN}")
+            DEPLOYMENT_STATE=$(echo "${STATUS_JSON}" | jq -r '.deploymentState // "UNKNOWN"')
+            echo "Central deployment state (${i}/40): ${DEPLOYMENT_STATE}"
+
+            if [ "${DEPLOYMENT_STATE}" = "PUBLISHED" ]; then
+              echo "Central deployment published successfully."
+              exit 0
+            fi
+
+            if [ "${DEPLOYMENT_STATE}" = "FAILED" ]; then
+              echo "Central deployment failed."
+              echo "${STATUS_JSON}"
+              exit 1
+            fi
+
+            sleep 30
+          done
+
+          echo "Timed out while waiting for Central deployment to become PUBLISHED."
+          exit 1

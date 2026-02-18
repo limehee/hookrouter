@@ -1,0 +1,53 @@
+name: CI
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        java: [ '21', '25' ]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6.0.2
+        with:
+          fetch-depth: 0
+
+      - name: Setup JDK
+        uses: actions/setup-java@v5.2.0
+        with:
+          distribution: temurin
+          java-version: ${{ matrix.java }}
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v5.0.1
+
+      - name: Build and Test
+        run: ./gradlew --no-daemon --configuration-cache check
+
+      - name: API Compatibility Check
+        if: matrix.java == '21'
+        shell: bash
+        run: |
+          PROJECT_VERSION=$(grep '^version=' gradle.properties | cut -d= -f2)
+          BASELINE_TAG=$(git tag --list 'v*' --sort=-v:refname | grep -Fxv "v${PROJECT_VERSION}" | head -n 1 || true)
+          if [ -z "${BASELINE_TAG}" ]; then
+            echo "No release tag found. Skipping apiCompat."
+            exit 0
+          fi
+          BASELINE_VERSION="${BASELINE_TAG#v}"
+          echo "Using baseline version: ${BASELINE_VERSION}"
+          ./gradlew --no-daemon --configuration-cache apiCompat -PapiBaselineVersion="${BASELINE_VERSION}"

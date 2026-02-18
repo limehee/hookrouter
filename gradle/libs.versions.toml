@@ -1,0 +1,26 @@
+[versions]
+spring-boot = "4.0.2"
+resilience4j = "2.3.0"
+slack = "1.46.0"
+jspecify = "1.0.0"
+
+[libraries]
+spring-boot-bom = { module = "org.springframework.boot:spring-boot-dependencies", version.ref = "spring-boot" }
+spring-boot-starter-web = { module = "org.springframework.boot:spring-boot-starter-web" }
+spring-boot-starter-actuator = { module = "org.springframework.boot:spring-boot-starter-actuator" }
+spring-boot-micrometer-metrics = { module = "org.springframework.boot:spring-boot-micrometer-metrics" }
+spring-boot-starter-test = { module = "org.springframework.boot:spring-boot-starter-test" }
+
+resilience4j-circuitbreaker = { module = "io.github.resilience4j:resilience4j-circuitbreaker", version.ref = "resilience4j" }
+resilience4j-retry = { module = "io.github.resilience4j:resilience4j-retry", version.ref = "resilience4j" }
+resilience4j-timelimiter = { module = "io.github.resilience4j:resilience4j-timelimiter", version.ref = "resilience4j" }
+resilience4j-ratelimiter = { module = "io.github.resilience4j:resilience4j-ratelimiter", version.ref = "resilience4j" }
+resilience4j-bulkhead = { module = "io.github.resilience4j:resilience4j-bulkhead", version.ref = "resilience4j" }
+resilience4j-micrometer = { module = "io.github.resilience4j:resilience4j-micrometer", version.ref = "resilience4j" }
+
+slack-api-model = { module = "com.slack.api:slack-api-model", version.ref = "slack" }
+slack-api-client = { module = "com.slack.api:slack-api-client", version.ref = "slack" }
+slack-api-backend = { module = "com.slack.api:slack-app-backend", version.ref = "slack" }
+
+buildtools-jspecify = { module = "org.jspecify:jspecify", version.ref = "jspecify" }
+test-junit-platform-launcher = { module = "org.junit.platform:junit-platform-launcher" }

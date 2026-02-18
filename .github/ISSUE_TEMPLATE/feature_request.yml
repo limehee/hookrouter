@@ -1,0 +1,39 @@
+name: Feature request
+description: Suggest an enhancement
+title: "[Feature] "
+labels: ["enhancement", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the suggestion. Explain the problem and the desired behavior clearly.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem statement
+      description: What limitation or pain point are you facing?
+      placeholder: Describe the current problem.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: What should be added or changed?
+      placeholder: Describe your preferred solution.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Optional alternatives or workarounds.
+  - type: textarea
+    id: impact
+    attributes:
+      label: Runtime/Behavior impact
+      description: Mention API, config, or compatibility impact if any.
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional context
