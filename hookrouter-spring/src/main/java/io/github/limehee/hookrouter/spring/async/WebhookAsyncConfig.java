@@ -28,8 +28,12 @@ public class WebhookAsyncConfig {
     @Bean(name = "webhookTaskExecutor")
     public Executor webhookTaskExecutor() {
         boolean virtualThreadsEnabled = environment.getProperty(VIRTUAL_THREADS_ENABLED_PROPERTY, Boolean.class, false);
-        if (virtualThreadsEnabled) {
-            return createVirtualThreadExecutor();
+        if (virtualThreadsEnabled && isVirtualThreadSupported()) {
+            try {
+                return createVirtualThreadExecutor();
+            } catch (UnsupportedOperationException ignored) {
+                return createPlatformThreadExecutor();
+            }
         }
         return createPlatformThreadExecutor();
     }
@@ -60,5 +64,14 @@ public class WebhookAsyncConfig {
     private RejectedExecutionHandler createRejectedExecutionHandler() {
         return (Runnable r, ThreadPoolExecutor e) -> {
         };
+    }
+
+    private boolean isVirtualThreadSupported() {
+        try {
+            Thread.class.getMethod("ofVirtual");
+            return true;
+        } catch (NoSuchMethodException ex) {
+            return false;
+        }
     }
 }

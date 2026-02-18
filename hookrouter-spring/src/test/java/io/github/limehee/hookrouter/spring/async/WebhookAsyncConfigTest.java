@@ -40,6 +40,15 @@ class WebhookAsyncConfigTest {
         return async;
     }
 
+    private boolean isVirtualThreadSupported() {
+        try {
+            Thread.class.getMethod("ofVirtual");
+            return true;
+        } catch (NoSuchMethodException ex) {
+            return false;
+        }
+    }
+
     @Nested
     class PlatformThreadExecutorTest {
 
@@ -155,7 +164,11 @@ class WebhookAsyncConfigTest {
 
             // Then
             assertThat(executor).isNotNull();
-            assertThat(executor).isInstanceOf(SimpleAsyncTaskExecutor.class);
+            if (isVirtualThreadSupported()) {
+                assertThat(executor).isInstanceOf(SimpleAsyncTaskExecutor.class);
+            } else {
+                assertThat(executor).isInstanceOf(ThreadPoolTaskExecutor.class);
+            }
         }
 
         @Test
@@ -168,11 +181,14 @@ class WebhookAsyncConfigTest {
             given(configProperties.getAsync()).willReturn(async);
 
             // When
-            SimpleAsyncTaskExecutor executor =
-                (SimpleAsyncTaskExecutor) config.webhookTaskExecutor();
+            Executor executor = config.webhookTaskExecutor();
 
             // Then
-            assertThat(executor.getThreadNamePrefix()).isEqualTo("virtual-hookrouter-");
+            if (isVirtualThreadSupported()) {
+                assertThat(((SimpleAsyncTaskExecutor) executor).getThreadNamePrefix()).isEqualTo("virtual-hookrouter-");
+            } else {
+                assertThat(((ThreadPoolTaskExecutor) executor).getThreadNamePrefix()).isEqualTo("virtual-hookrouter-");
+            }
         }
 
         @Test
@@ -185,13 +201,16 @@ class WebhookAsyncConfigTest {
             given(configProperties.getAsync()).willReturn(async);
 
             // When
-            SimpleAsyncTaskExecutor executor =
-                (SimpleAsyncTaskExecutor) config.webhookTaskExecutor();
+            Executor executor = config.webhookTaskExecutor();
 
             // Then
 
             assertThat(executor).isNotNull();
-            assertThat(executor.isActive()).isTrue();
+            if (isVirtualThreadSupported()) {
+                assertThat(((SimpleAsyncTaskExecutor) executor).isActive()).isTrue();
+            } else {
+                assertThat(executor).isInstanceOf(ThreadPoolTaskExecutor.class);
+            }
         }
     }
 }

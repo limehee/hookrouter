@@ -114,7 +114,7 @@ class WebhookEndToEndFlowTest {
             assertThat(pending).hasSize(1);
 
             sender.setMode(SenderMode.SUCCESS);
-            DeadLetterReprocessor.ReprocessResult result = reprocessor.reprocessById(pending.getFirst().id());
+            DeadLetterReprocessor.ReprocessResult result = reprocessor.reprocessById(pending.get(0).id());
             assertThat(result.isSuccess()).isTrue();
 
             await().atMost(Duration.ofSeconds(5)).untilAsserted(() -> {

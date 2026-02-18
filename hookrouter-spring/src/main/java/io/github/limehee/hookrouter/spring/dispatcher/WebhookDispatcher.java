@@ -1,5 +1,9 @@
 package io.github.limehee.hookrouter.spring.dispatcher;
 
+import static io.github.limehee.hookrouter.spring.support.ClampUtils.clampFloat;
+import static io.github.limehee.hookrouter.spring.support.ClampUtils.clampInt;
+import static io.github.limehee.hookrouter.spring.support.ClampUtils.clampLong;
+
 import io.github.limehee.hookrouter.core.domain.Notification;
 import io.github.limehee.hookrouter.core.port.RoutingTarget;
 import io.github.limehee.hookrouter.core.port.WebhookSender;
@@ -208,10 +212,10 @@ public class WebhookDispatcher {
             return null;
         }
 
-        int failureThreshold = Math.clamp(props.getFailureThreshold(), 1, Integer.MAX_VALUE);
-        int successThreshold = Math.clamp(props.getSuccessThreshold(), 1, Integer.MAX_VALUE);
-        long waitDurationMillis = Math.clamp(props.getWaitDuration(), 1L, Long.MAX_VALUE);
-        float failureRateThreshold = Math.clamp(props.getFailureRateThreshold(), 0.0F, 100.0F);
+        int failureThreshold = clampInt(props.getFailureThreshold(), 1, Integer.MAX_VALUE);
+        int successThreshold = clampInt(props.getSuccessThreshold(), 1, Integer.MAX_VALUE);
+        long waitDurationMillis = clampLong(props.getWaitDuration(), 1L, Long.MAX_VALUE);
+        float failureRateThreshold = clampFloat(props.getFailureRateThreshold(), 0.0F, 100.0F);
 
         CircuitBreakerConfig config = CircuitBreakerConfig.custom()
             .slidingWindowType(CircuitBreakerConfig.SlidingWindowType.COUNT_BASED)
@@ -384,7 +388,7 @@ public class WebhookDispatcher {
             return sender.send(webhookUrl, payload);
         }
 
-        long durationMillis = Math.clamp(timeoutProps.getDuration(), 1L, Long.MAX_VALUE);
+        long durationMillis = clampLong(timeoutProps.getDuration(), 1L, Long.MAX_VALUE);
         TimeLimiterConfig config = TimeLimiterConfig.custom()
             .timeoutDuration(Duration.ofMillis(durationMillis))
             .cancelRunningFuture(true)
@@ -431,4 +435,5 @@ public class WebhookDispatcher {
             super(message, null, false, false);
         }
     }
+
 }

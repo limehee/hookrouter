@@ -3,3 +3,6 @@ contact_links:
   - name: Questions and support
     url: https://github.com/limehee/hookrouter/discussions
     about: Ask questions and discuss usage ideas.
+  - name: Security vulnerability report
+    url: https://github.com/limehee/hookrouter/security/advisories/new
+    about: Report sensitive security issues privately.

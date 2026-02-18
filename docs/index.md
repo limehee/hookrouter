@@ -12,3 +12,4 @@
 - [Testing and Quality](testing-and-quality.md)
 - [Troubleshooting](troubleshooting.md)
 - [Release Checklist](release-checklist.md)
+- [Security Policy](../SECURITY.md)

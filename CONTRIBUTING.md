@@ -18,7 +18,7 @@ This project provides webhook routing and notification components for Spring Boo
 ## Development Setup
 
 Requirements:
-- JDK 21+
+- JDK 17+
 - Gradle wrapper (`./gradlew`)
 
 Common commands:

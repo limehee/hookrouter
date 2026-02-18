@@ -70,7 +70,7 @@ class SpringMappingSampleIntegrationTest {
         awaitCalls(slackSender, 1, Duration.ofSeconds(3));
 
         assertThat(slackSender.calls()).hasSize(1);
-        assertThat(slackSender.calls().getFirst().webhookUrl())
+        assertThat(slackSender.calls().get(0).webhookUrl())
             .isEqualTo("https://example.test/slack/critical");
         assertThat(discordSender.calls()).isEmpty();
     }
@@ -88,7 +88,7 @@ class SpringMappingSampleIntegrationTest {
         awaitCalls(discordSender, 1, Duration.ofSeconds(3));
 
         assertThat(discordSender.calls()).hasSize(1);
-        assertThat(discordSender.calls().getFirst().webhookUrl())
+        assertThat(discordSender.calls().get(0).webhookUrl())
             .isEqualTo("https://example.test/discord/ops");
         assertThat(slackSender.calls()).isEmpty();
     }
@@ -106,7 +106,7 @@ class SpringMappingSampleIntegrationTest {
         awaitCalls(slackSender, 1, Duration.ofSeconds(3));
 
         assertThat(slackSender.calls()).hasSize(1);
-        assertThat(slackSender.calls().getFirst().webhookUrl())
+        assertThat(slackSender.calls().get(0).webhookUrl())
             .isEqualTo("https://example.test/slack/general");
         assertThat(discordSender.calls()).isEmpty();
     }

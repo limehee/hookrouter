@@ -14,3 +14,8 @@ Before release, also review:
 - [Testing and Quality](testing-and-quality.md)
 - [Release Checklist](release-checklist.md)
 - [Troubleshooting](troubleshooting.md)
+
+Project policy documents:
+
+- [Contributing Guide](../CONTRIBUTING.md)
+- [Security Policy](../SECURITY.md)

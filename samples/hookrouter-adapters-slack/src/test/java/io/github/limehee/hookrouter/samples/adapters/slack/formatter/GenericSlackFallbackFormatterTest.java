@@ -100,7 +100,7 @@ class GenericSlackFallbackFormatterTest {
             assertThat(payload.getText()).contains("Test event");
             assertThat(payload.getText()).contains("This is a test message.");
             assertThat(payload.getAttachments()).hasSize(1);
-            assertThat(payload.getAttachments().getFirst().getBlocks()).isNotEmpty();
+            assertThat(payload.getAttachments().get(0).getBlocks()).isNotEmpty();
         }
 
         @Test
@@ -143,7 +143,7 @@ class GenericSlackFallbackFormatterTest {
 
             // Then
             assertThat(payload.getAttachments()).hasSize(1);
-            Attachment attachment = payload.getAttachments().getFirst();
+            Attachment attachment = payload.getAttachments().get(0);
             assertThat(attachment.getColor()).isEqualTo(color);
         }
 
@@ -165,7 +165,7 @@ class GenericSlackFallbackFormatterTest {
 
             // Then
             assertThat(payload.getAttachments()).hasSize(1);
-            assertThat(payload.getAttachments().getFirst().getBlocks()).hasSizeGreaterThanOrEqualTo(3);
+            assertThat(payload.getAttachments().get(0).getBlocks()).hasSizeGreaterThanOrEqualTo(3);
         }
 
         @Test
@@ -185,7 +185,7 @@ class GenericSlackFallbackFormatterTest {
             SlackPayload payload = formatter.format(notification);
 
             assertThat(payload.getAttachments()).hasSize(1);
-            assertThat(payload.getAttachments().getFirst().getBlocks()).hasSize(3);
+            assertThat(payload.getAttachments().get(0).getBlocks()).hasSize(3);
         }
 
         @Test
@@ -204,7 +204,7 @@ class GenericSlackFallbackFormatterTest {
             SlackPayload payload = formatter.format(notification);
 
             assertThat(payload.getAttachments()).hasSize(1);
-            assertThat(payload.getAttachments().getFirst().getBlocks()).hasSize(3);
+            assertThat(payload.getAttachments().get(0).getBlocks()).hasSize(3);
         }
     }
 }

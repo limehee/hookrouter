@@ -1,37 +1,120 @@
 # hookrouter
 
-`hookrouter` is a modular webhook routing and notification library for Spring Boot.
+Production-oriented webhook routing library for Java, with optional Spring Boot integration.
 
-It is split into focused modules:
+## Why this library
 
-- `hookrouter-core`: domain model, registries, and extension contracts
-- `hookrouter-spring`: Spring Boot integration, routing pipeline, resilience, dead-letter, metrics
-- `samples/hookrouter-spring-mapping-sample`: Spring mapping precedence sample
-- `samples/hookrouter-pure-java-sample`: pure Java routing sample
-- `samples/hookrouter-adapters-slack`: sample platform adapter implementation
+- Explicit routing priority: `type-mappings` -> `category-mappings` -> `default-mappings`
+- Pure Java core contracts for custom runtime/transport use cases
+- Spring Boot integration for configuration, dispatch pipeline, resilience, and metrics
+- Resilience4j support (retry, timeout, circuit breaker, rate limiter, bulkhead)
+- Dead-letter handling and reprocessing support
 
-## Key Features
+## Baseline
 
-- Type-safe notifications with `Notification<T>`
-- Registry-based notification type and formatter management (fail-fast on duplicates)
-- Config-based routing with clear priority:
-  - `typeMappings`
-  - `categoryMappings`
-  - `defaultMappings`
-- Resilience4j integration:
-  - Retry
-  - Timeout
-  - Circuit Breaker
-  - Rate Limiter
-  - Bulkhead
-- Dead-letter processing and reprocessing workflow
-- Micrometer metrics and Actuator health integration
+- Java: **17+**
+- Spring Boot baseline: **4.0.2**
+- Build: Gradle (Version Catalog + Wrapper)
+- CI matrix: Java 17, 21, 25
 
-## Module Docs
+## Modules
 
-- Consolidated module guide: `docs/module-guides.md`
+| Module              | Purpose                                                            |
+|---------------------|--------------------------------------------------------------------|
+| `hookrouter-core`   | Domain models, registries, and extension contracts                 |
+| `hookrouter-spring` | Spring runtime pipeline, routing, resilience, dead-letter, metrics |
 
-## Architecture Overview
+Additional sample modules are under `samples/`.
+
+## Install
+
+### Spring integration
+
+Maven:
+
+```xml
+<dependency>
+  <groupId>io.github.limehee</groupId>
+  <artifactId>hookrouter-spring</artifactId>
+  <version>${hookrouter.version}</version>
+</dependency>
+```
+
+Gradle (Groovy DSL):
+
+```groovy
+implementation 'io.github.limehee:hookrouter-spring:<version>'
+```
+
+Gradle (Kotlin DSL):
+
+```kotlin
+implementation("io.github.limehee:hookrouter-spring:<version>")
+```
+
+### Core only (pure Java)
+
+Maven:
+
+```xml
+<dependency>
+  <groupId>io.github.limehee</groupId>
+  <artifactId>hookrouter-core</artifactId>
+  <version>${hookrouter.version}</version>
+</dependency>
+```
+
+Gradle (Groovy DSL):
+
+```groovy
+implementation 'io.github.limehee:hookrouter-core:<version>'
+```
+
+Gradle (Kotlin DSL):
+
+```kotlin
+implementation("io.github.limehee:hookrouter-core:<version>")
+```
+
+## Quick Start (Spring)
+
+```yaml
+hookrouter:
+  platforms:
+    slack:
+      endpoints:
+        general:
+          url: "https://hooks.slack.com/services/xxx/yyy/zzz"
+  default-mappings:
+    - platform: "slack"
+      webhook: "general"
+```
+
+```java
+Notification<OrderCreatedContext> notification = Notification
+    .<OrderCreatedContext>builder("demo.order.created")
+    .category("demo.order")
+    .context(new OrderCreatedContext(orderId, customerName))
+    .build();
+
+notificationPublisher.publish(notification);
+```
+
+## Quick Start (Pure Java)
+
+```java
+NotificationTypeRegistry registry = new NotificationTypeRegistry();
+registry.register(NotificationTypeDefinition.builder()
+    .typeId("demo.event")
+    .title("Demo Event")
+    .defaultMessage("Demo")
+    .category("general")
+    .build());
+
+Notification<String> notification = Notification.of("demo.event", "general", "payload");
+```
+
+## Architecture
 
 ```mermaid
 flowchart LR
@@ -46,66 +129,26 @@ flowchart LR
     G --> J[DeadLetterProcessor]
 ```
 
-## Quick Start (Gradle Groovy DSL)
-
-```groovy
-dependencies {
-    implementation 'io.github.limehee:hookrouter-core:<version>'
-    implementation 'io.github.limehee:hookrouter-spring:<version>'
-}
-```
-
-Minimal configuration:
-
-```yaml
-hookrouter:
-  platforms:
-    slack:
-      endpoints:
-        general:
-          url: "https://hooks.slack.com/services/xxx/yyy/zzz"
-
-  default-mappings:
-    - platform: "slack"
-      webhook: "general"
-```
-
-Publish a notification:
-
-```java
-Notification<OrderCreatedContext> notification = Notification
-    .<OrderCreatedContext>builder("demo.order.created")
-    .category("demo.order")
-    .context(new OrderCreatedContext(orderId, customerName))
-    .build();
-
-notificationPublisher.publish(notification);
-```
-
-## Build
+## Build and Verify
 
 ```bash
-./gradlew test
-./gradlew :hookrouter-spring:integrationTest
-./gradlew :hookrouter-spring:e2eTest
 ./gradlew check
+./scripts/verify-consumer-smoke.sh
+./gradlew apiCompat -PapiBaselineVersion=<released-version>
 ```
 
 ## Documentation
 
-- Index: `docs/index.md`
-- Module guides: `docs/module-guides.md`
-- Getting started: `docs/getting-started.md`
-- Configuration reference: `docs/configuration-reference.md`
-- Samples: `docs/samples.md`
-- Release checklist: `docs/release-checklist.md`
+- Index: [`docs/index.md`](docs/index.md)
+- Getting started: [`docs/getting-started.md`](docs/getting-started.md)
+- Spring guide: [`docs/spring-boot-guide.md`](docs/spring-boot-guide.md)
+- Pure Java guide: [`docs/pure-java-guide.md`](docs/pure-java-guide.md)
+- Configuration reference: [`docs/configuration-reference.md`](docs/configuration-reference.md)
+- Testing/quality: [`docs/testing-and-quality.md`](docs/testing-and-quality.md)
+- Release checklist: [`docs/release-checklist.md`](docs/release-checklist.md)
 
-## Contributing
+## Project Policies
 
-- `CONTRIBUTING.md`
-- `.github/ISSUE_TEMPLATE`
-- `.github/pull_request_template.md`
-
-## Notes About Samples
-
-Sample modules are independent builds under `samples/` and can be tested with `./gradlew -p <sample-path> test`.
+- Contributing: [`CONTRIBUTING.md`](CONTRIBUTING.md)
+- Security: [`SECURITY.md`](SECURITY.md)
+- Issue templates: [`.github/ISSUE_TEMPLATE`](.github/ISSUE_TEMPLATE)

@@ -2,7 +2,7 @@
 
 ## Requirements
 
-- Java 21+
+- Java 17+
 - Gradle Wrapper (`./gradlew`)
 
 ## Modules
@@ -10,12 +10,23 @@
 - `hookrouter-core`: domain model, registries, and contracts
 - `hookrouter-spring`: Spring runtime pipeline, configuration, resilience, dead-letter, metrics
 
-## Dependencies (Gradle Groovy DSL)
+## Dependencies (Gradle)
+
+Groovy DSL:
 
 ```groovy
 dependencies {
     implementation 'io.github.limehee:hookrouter-core:<version>'
     implementation 'io.github.limehee:hookrouter-spring:<version>'
+}
+```
+
+Kotlin DSL:
+
+```kotlin
+dependencies {
+    implementation("io.github.limehee:hookrouter-core:<version>")
+    implementation("io.github.limehee:hookrouter-spring:<version>")
 }
 ```
 

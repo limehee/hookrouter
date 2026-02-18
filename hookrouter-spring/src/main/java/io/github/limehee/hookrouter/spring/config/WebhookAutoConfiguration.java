@@ -1,5 +1,9 @@
 package io.github.limehee.hookrouter.spring.config;
 
+import static io.github.limehee.hookrouter.spring.support.ClampUtils.clampFloat;
+import static io.github.limehee.hookrouter.spring.support.ClampUtils.clampInt;
+import static io.github.limehee.hookrouter.spring.support.ClampUtils.clampLong;
+
 import io.github.limehee.hookrouter.core.domain.NotificationTypeDefinition;
 import io.github.limehee.hookrouter.core.domain.WebhookFormatter;
 import io.github.limehee.hookrouter.core.port.RoutingPolicy;
@@ -111,10 +115,10 @@ public class WebhookAutoConfiguration {
     public CircuitBreakerRegistry circuitBreakerRegistry(WebhookConfigProperties properties,
         CircuitBreakerEventListener eventListener) {
         WebhookConfigProperties.CircuitBreakerProperties cbProps = properties.getCircuitBreaker();
-        int failureThreshold = Math.clamp(cbProps.getFailureThreshold(), 1, Integer.MAX_VALUE);
-        int successThreshold = Math.clamp(cbProps.getSuccessThreshold(), 1, Integer.MAX_VALUE);
-        long waitDurationMillis = Math.clamp(cbProps.getWaitDuration(), 1L, Long.MAX_VALUE);
-        float failureRateThreshold = Math.clamp(cbProps.getFailureRateThreshold(), 0.0F, 100.0F);
+        int failureThreshold = clampInt(cbProps.getFailureThreshold(), 1, Integer.MAX_VALUE);
+        int successThreshold = clampInt(cbProps.getSuccessThreshold(), 1, Integer.MAX_VALUE);
+        long waitDurationMillis = clampLong(cbProps.getWaitDuration(), 1L, Long.MAX_VALUE);
+        float failureRateThreshold = clampFloat(cbProps.getFailureRateThreshold(), 0.0F, 100.0F);
         CircuitBreakerConfig config = CircuitBreakerConfig.custom()
             .slidingWindowType(CircuitBreakerConfig.SlidingWindowType.COUNT_BASED).slidingWindowSize(failureThreshold)
             .minimumNumberOfCalls(failureThreshold).failureRateThreshold(failureRateThreshold)
@@ -132,7 +136,7 @@ public class WebhookAutoConfiguration {
     @Bean
     public TimeLimiterRegistry timeLimiterRegistry(WebhookConfigProperties properties) {
         WebhookConfigProperties.TimeoutProperties timeoutProps = properties.getTimeout();
-        long durationMillis = Math.clamp(timeoutProps.getDuration(), 1L, Long.MAX_VALUE);
+        long durationMillis = clampLong(timeoutProps.getDuration(), 1L, Long.MAX_VALUE);
         TimeLimiterConfig config = TimeLimiterConfig.custom().timeoutDuration(Duration.ofMillis(durationMillis))
             .cancelRunningFuture(true).build();
         return TimeLimiterRegistry.of(config);
@@ -265,4 +269,5 @@ public class WebhookAutoConfiguration {
             return new WebhookHealthIndicator(circuitBreakerRegistry, webhookKeys, deadLetterStore.orElse(null));
         }
     }
+
 }

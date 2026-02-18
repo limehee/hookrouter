@@ -57,7 +57,7 @@ class PureJavaWebhookRouterTest {
 
         assertEquals(1, sentCount);
         assertEquals(1, slackSender.calls().size());
-        assertEquals("https://example.test/slack/critical", slackSender.calls().getFirst().webhookUrl());
+        assertEquals("https://example.test/slack/critical", slackSender.calls().get(0).webhookUrl());
         assertTrue(discordSender.calls().isEmpty());
     }
 
@@ -73,7 +73,7 @@ class PureJavaWebhookRouterTest {
 
         assertEquals(1, sentCount);
         assertEquals(1, discordSender.calls().size());
-        assertEquals("https://example.test/discord/ops", discordSender.calls().getFirst().webhookUrl());
+        assertEquals("https://example.test/discord/ops", discordSender.calls().get(0).webhookUrl());
         assertTrue(slackSender.calls().isEmpty());
     }
 
@@ -89,7 +89,7 @@ class PureJavaWebhookRouterTest {
 
         assertEquals(1, sentCount);
         assertEquals(1, slackSender.calls().size());
-        assertEquals("https://example.test/slack/general", slackSender.calls().getFirst().webhookUrl());
+        assertEquals("https://example.test/slack/general", slackSender.calls().get(0).webhookUrl());
         assertTrue(discordSender.calls().isEmpty());
     }
 

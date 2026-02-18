@@ -1,5 +1,9 @@
 package io.github.limehee.hookrouter.spring.resilience;
 
+import static io.github.limehee.hookrouter.spring.support.ClampUtils.clampDouble;
+import static io.github.limehee.hookrouter.spring.support.ClampUtils.clampInt;
+import static io.github.limehee.hookrouter.spring.support.ClampUtils.clampLong;
+
 import io.github.limehee.hookrouter.spring.config.WebhookConfigProperties.RetryProperties;
 import io.github.resilience4j.core.IntervalFunction;
 import io.github.resilience4j.retry.RetryConfig;
@@ -15,11 +19,11 @@ public final class WebhookRetryFactory {
     }
 
     public static RetryConfig createConfig(RetryProperties properties) {
-        int maxAttempts = Math.clamp(properties.getMaxAttempts(), 1, Integer.MAX_VALUE);
-        long initialDelay = Math.clamp(properties.getInitialDelay(), 1L, Long.MAX_VALUE);
-        long maxDelay = Math.clamp(properties.getMaxDelay(), initialDelay, Long.MAX_VALUE);
+        int maxAttempts = clampInt(properties.getMaxAttempts(), 1, Integer.MAX_VALUE);
+        long initialDelay = clampLong(properties.getInitialDelay(), 1L, Long.MAX_VALUE);
+        long maxDelay = clampLong(properties.getMaxDelay(), initialDelay, Long.MAX_VALUE);
         double multiplier = Math.max(properties.getMultiplier(), 1.0);
-        double jitterFactor = Math.clamp(properties.getJitterFactor(), 0.0, 1.0);
+        double jitterFactor = clampDouble(properties.getJitterFactor(), 0.0, 1.0);
         IntervalFunction intervalFunction = IntervalFunction.ofExponentialRandomBackoff(initialDelay, multiplier,
             jitterFactor, maxDelay);
         return

@@ -18,7 +18,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        java: [ '21', '25' ]
+        java: [ '17', '21', '25' ]
 
     steps:
       - name: Checkout
@@ -39,7 +39,7 @@ jobs:
         run: ./gradlew --no-daemon --configuration-cache check
 
       - name: API Compatibility Check
-        if: matrix.java == '21'
+        if: matrix.java == '17'
         shell: bash
         run: |
           PROJECT_VERSION=$(grep '^version=' gradle.properties | cut -d= -f2)
