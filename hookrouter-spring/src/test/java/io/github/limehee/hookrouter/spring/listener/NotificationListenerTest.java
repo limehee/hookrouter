@@ -1,5 +1,6 @@
 package io.github.limehee.hookrouter.spring.listener;
 
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
@@ -141,6 +142,18 @@ class NotificationListenerTest {
                 verify(formatterRegistry).getOrFallback("slack", "test-type");
                 verify(formatterRegistry).getOrFallback("discord", "test-type");
             }
+
+            @Test
+            void shouldNotThrowWhenRoutingPolicyThrowsException() {
+                Notification<TestContext> notification = createNotification("test-type");
+                given(routingPolicy.resolve("test-type", "general"))
+                    .willThrow(new IllegalStateException("routing-failure"));
+
+                assertDoesNotThrow(() -> notificationListener.handleNotification(notification));
+
+                verify(formatterRegistry, never()).getOrFallback(any(), any());
+                verify(dispatcher, never()).dispatch(any(), any(), any(), any());
+            }
         }
 
         @Nested
@@ -204,6 +217,28 @@ class NotificationListenerTest {
 
                 // Then
                 verify(dispatcher).dispatch(eq(notification), eq(target), eq(slackSender), eq(payload));
+            }
+
+            @Test
+            void shouldIncludeFormatterExceptionMessageInDeadLetterReason() {
+                Notification<TestContext> notification = createNotification("test-type");
+                RoutingTarget target = createRoutingTarget("slack", "slack-key", "https://hooks.slack.com/test");
+                WebhookFormatter<?, ?> formatter = createFormatter("slack", "test-type");
+
+                given(routingPolicy.resolve("test-type", "general"))
+                    .willReturn(List.of(target));
+                doReturn(formatter).when(formatterRegistry).getOrFallback("slack", "test-type");
+                doReturn(Object.class).when(formatter).contextClass();
+                given(formatter.format(any())).willThrow(new IllegalStateException("format-failure"));
+
+                notificationListener.handleNotification(notification);
+
+                verify(dispatcher, never()).dispatch(any(), any(), any(), any());
+                verify(deadLetterProcessor).processPayloadCreationFailed(
+                    eq(notification),
+                    eq(target),
+                    eq("Formatter execution failed: format-failure")
+                );
             }
         }
 

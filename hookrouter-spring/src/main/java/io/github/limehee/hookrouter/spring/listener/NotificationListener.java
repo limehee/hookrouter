@@ -18,6 +18,7 @@ import org.springframework.scheduling.annotation.Async;
 
 public class NotificationListener {
 
+    private static final System.Logger LOGGER = System.getLogger(NotificationListener.class.getName());
     private final RoutingPolicy routingPolicy;
     private final FormatterRegistry formatterRegistry;
     private final Map<String, WebhookSender> senderMap;
@@ -48,6 +49,8 @@ public class NotificationListener {
                 dispatchToTarget(notification, target);
             }
         } catch (Exception e) {
+            LOGGER.log(System.Logger.Level.ERROR,
+                "Failed to process notification typeId=" + typeId + ", category=" + notification.getCategory(), e);
         }
     }
 
@@ -61,9 +64,13 @@ public class NotificationListener {
             return;
         }
 
-        Object payload = formatPayload(notification, formatter);
+        PayloadResult payloadResult = formatPayload(notification, formatter);
+        Object payload = payloadResult.payload();
         if (payload == null) {
-            deadLetterProcessor.processPayloadCreationFailed(notification, target, "Formatter returned null payload");
+            String reason = payloadResult.errorMessage() != null
+                ? payloadResult.errorMessage()
+                : "Formatter returned null payload";
+            deadLetterProcessor.processPayloadCreationFailed(notification, target, reason);
             return;
         }
 
@@ -77,25 +84,29 @@ public class NotificationListener {
     }
 
     @SuppressWarnings("unchecked")
-    @Nullable
-    private <T> Object formatPayload(Notification<T> notification, WebhookFormatter<?, ?> formatter) {
+    private <T> PayloadResult formatPayload(Notification<T> notification, WebhookFormatter<?, ?> formatter) {
         try {
-
             Class<?> contextClass = formatter.contextClass();
             Object context = notification.getContext();
-
             if (!contextClass.isInstance(context) && !Object.class.equals(contextClass)) {
-                return null;
+                return new PayloadResult(null,
+                    "Formatter context type mismatch: expected " + contextClass.getName() + ", actual "
+                        + context.getClass().getName());
             }
-
             WebhookFormatter<Object, Object> typedFormatter = (WebhookFormatter<Object, Object>) formatter;
             Notification<Object> typedNotification = (Notification<Object>) notification;
-            return typedFormatter.format(typedNotification);
+            return new PayloadResult(typedFormatter.format(typedNotification), null);
         } catch (ClassCastException e) {
-            return null;
+            return new PayloadResult(null, "Formatter type cast failed: " + e.getMessage());
         } catch (Exception e) {
-
-            return null;
+            LOGGER.log(System.Logger.Level.WARNING,
+                "Formatter failed for typeId=" + notification.getTypeId() + ", platform=" + formatter.platform(), e);
+            return new PayloadResult(null,
+                "Formatter execution failed: " + (e.getMessage() != null ? e.getMessage() : e.getClass().getName()));
         }
+    }
+
+    private record PayloadResult(@Nullable Object payload, @Nullable String errorMessage) {
+
     }
 }
