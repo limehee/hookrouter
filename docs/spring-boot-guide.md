@@ -74,7 +74,9 @@ Behavior:
 
 ## 3. Global Resilience Config
 
-`hookrouter.retry.max-attempts` means total send attempts including the first attempt.
+For full validation rules (single-field and cross-field), see
+[`configuration-reference.md`](configuration-reference.md) and
+[`troubleshooting.md`](troubleshooting.md).
 
 ```yaml
 hookrouter:
@@ -101,7 +103,7 @@ hookrouter:
     timeout-duration: 0
   bulkhead:
     enabled: true
-    max-concurrent-calls: 20
+    max-concurrent-calls: 10
     max-wait-duration: 0
 ```
 
@@ -164,6 +166,9 @@ hookrouter:
     scheduler-batch-size: 50
 ```
 
+When the async pool is saturated, `hookrouter` uses `CallerRunsPolicy`.
+Tasks are not dropped; the caller thread executes them instead.
+
 To persist dead letters and enable replay, register a `DeadLetterStore` bean:
 
 ```java
@@ -216,7 +221,7 @@ hookrouter:
     timeout-duration: 0
   bulkhead:
     enabled: true
-    max-concurrent-calls: 50
+    max-concurrent-calls: 10
     max-wait-duration: 0
   dead-letter:
     enabled: true

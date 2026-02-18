@@ -17,6 +17,7 @@ Notes:
 - `DeadLetterScheduler` is auto-created only when:
   - `DeadLetterReprocessor` exists
   - `hookrouter.dead-letter.scheduler-enabled=true`
+- Reprocess marks an item `RESOLVED` only when replay delivery actually succeeds.
 
 ## 2. Configuration keys
 
@@ -64,6 +65,7 @@ Why this matters:
 
 - `InMemoryDeadLetterStore` constructor controls `maxRetries`.
 - Wiring it from `hookrouter.dead-letter.max-retries` keeps runtime behavior aligned with YAML.
+- When in-memory storage reaches capacity, it evicts oldest `RESOLVED`/`ABANDONED` first, then oldest remaining entry.
 
 ## 4. Automatic reprocessing
 

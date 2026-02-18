@@ -23,16 +23,21 @@ Routing priority:
 - `hookrouter.rate-limiter.*`
 - `hookrouter.bulkhead.*`
 
-Retry note:
-
-- `hookrouter.retry.max-attempts` is the total number of send attempts including the first attempt.
-
 ## 3. Runtime/Operations Keys
 
 - `hookrouter.dead-letter.*`
 - `hookrouter.async.*`
 
-## 4. Full Example (`application.yml`)
+## 4. Cross-field Validation Rules
+
+The application fails fast with `WebhookConfigValidationException` when incompatible values are combined.
+
+- `hookrouter.timeout.duration >= hookrouter.retry.max-delay` when both `timeout.enabled` and `retry.enabled` are true
+- `hookrouter.bulkhead.max-concurrent-calls <= hookrouter.async.max-pool-size` when `bulkhead.enabled` is true
+- `hookrouter.rate-limiter.timeout-duration <= hookrouter.timeout.duration` when both `rate-limiter.enabled` and `timeout.enabled` are true
+- `hookrouter.bulkhead.max-wait-duration <= hookrouter.timeout.duration` when both `bulkhead.enabled` and `timeout.enabled` are true
+
+## 5. Full Example (`application.yml`)
 
 ```yaml
 hookrouter:
@@ -102,7 +107,7 @@ hookrouter:
 
   bulkhead:
     enabled: true
-    max-concurrent-calls: 50
+    max-concurrent-calls: 16
     max-wait-duration: 0
 
   dead-letter:
@@ -120,7 +125,7 @@ hookrouter:
     await-termination-seconds: 30
 ```
 
-## 5. Environment Variable Mapping Example
+## 6. Environment Variable Mapping Example
 
 ```bash
 HOOKROUTER_RETRY_ENABLED=true
@@ -128,25 +133,28 @@ HOOKROUTER_RETRY_MAX_ATTEMPTS=3
 HOOKROUTER_TIMEOUT_DURATION=5000
 HOOKROUTER_CIRCUIT_BREAKER_ENABLED=true
 HOOKROUTER_RATE_LIMITER_LIMIT_FOR_PERIOD=20
-HOOKROUTER_BULKHEAD_MAX_CONCURRENT_CALLS=50
+HOOKROUTER_BULKHEAD_MAX_CONCURRENT_CALLS=16
+HOOKROUTER_ASYNC_MAX_POOL_SIZE=16
 ```
 
-## 6. Recommended Patterns
+## 7. Recommended Patterns
 
 - Keep `default-mappings` as a safe fallback.
 - Put highest-critical routes into `type-mappings`.
 - Use per-webhook override for hot/critical endpoints only.
 - Use `dead-letter.enabled=true` in production.
 - Register a `DeadLetterStore` bean if you need persistence/replay (otherwise dead letters are log-only fallback).
+- Keep `bulkhead.max-concurrent-calls` aligned with `async.max-pool-size`.
 
-## 7. Dead-letter activation notes
+## 8. Dead-letter activation notes
 
 - `dead-letter.enabled=true` does not automatically persist failed events by itself.
 - Persistence and replay are active when a `DeadLetterStore` bean is present.
 - Scheduled replay additionally requires `dead-letter.scheduler-enabled=true`.
+- A dead-letter item is marked `RESOLVED` only when the replayed notification is processed successfully.
 - For end-to-end setup, see [`dead-letter-guide.md`](dead-letter-guide.md).
 
-## 8. IDE Auto-completion and Hints
+## 9. IDE Auto-completion and Hints
 
 `hookrouter-spring` provides configuration metadata through:
 
@@ -158,6 +166,8 @@ In IntelliJ and Spring-aware tooling, this enables:
 - auto-completion for `hookrouter.*` keys
 - inline descriptions for core keys
 - common value suggestions for selected keys
+
+Hint values are suggestions, not strict enums. You can configure other valid values.
 
 For map-based dynamic keys such as `hookrouter.platforms.<platform>.endpoints.<webhookKey>.*`,
 the IDE can suggest the static prefix, but `<platform>` and `<webhookKey>` are user-defined and

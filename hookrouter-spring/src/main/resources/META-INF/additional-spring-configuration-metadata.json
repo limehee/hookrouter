@@ -42,7 +42,7 @@
       "name": "hookrouter.retry.max-delay",
       "type": "java.lang.Long",
       "defaultValue": 10000,
-      "description": "Maximum retry delay in milliseconds. Must be greater than 0 and >= initial-delay."
+      "description": "Maximum retry delay in milliseconds. Must be greater than 0 and >= initial-delay. If timeout is enabled, timeout.duration must be >= max-delay."
     },
     {
       "name": "hookrouter.retry.multiplier",
@@ -66,7 +66,7 @@
       "name": "hookrouter.timeout.duration",
       "type": "java.lang.Long",
       "defaultValue": 15000,
-      "description": "Timeout in milliseconds. Must be greater than 0."
+      "description": "Timeout in milliseconds. Must be greater than 0. If retry is enabled, this must be >= retry.max-delay. If enabled with rate limiter/bulkhead, this must be >= their wait timeouts."
     },
     {
       "name": "hookrouter.circuit-breaker.enabled",
@@ -120,7 +120,7 @@
       "name": "hookrouter.rate-limiter.timeout-duration",
       "type": "java.lang.Long",
       "defaultValue": 5000,
-      "description": "Permit acquisition timeout in milliseconds. Must be >= 0."
+      "description": "Permit acquisition timeout in milliseconds. Must be >= 0. If timeout is enabled, this must be <= timeout.duration."
     },
     {
       "name": "hookrouter.bulkhead.enabled",
@@ -132,13 +132,13 @@
       "name": "hookrouter.bulkhead.max-concurrent-calls",
       "type": "java.lang.Integer",
       "defaultValue": 25,
-      "description": "Maximum concurrent calls. Must be greater than 0."
+      "description": "Maximum concurrent calls. Must be greater than 0. When bulkhead is enabled, this must be <= async.max-pool-size."
     },
     {
       "name": "hookrouter.bulkhead.max-wait-duration",
       "type": "java.lang.Long",
       "defaultValue": 0,
-      "description": "Bulkhead wait duration in milliseconds. Must be >= 0."
+      "description": "Bulkhead wait duration in milliseconds. Must be >= 0. If timeout is enabled, this must be <= timeout.duration."
     },
     {
       "name": "hookrouter.dead-letter.enabled",
@@ -150,7 +150,7 @@
       "name": "hookrouter.dead-letter.max-retries",
       "type": "java.lang.Integer",
       "defaultValue": 3,
-      "description": "Maximum reprocessing retries before dropping or parking events."
+      "description": "Maximum reprocessing retries before dropping or parking events. Effective max retry behavior is applied by the DeadLetterStore implementation."
     },
     {
       "name": "hookrouter.dead-letter.scheduler-enabled",
@@ -186,7 +186,7 @@
       "name": "hookrouter.async.queue-capacity",
       "type": "java.lang.Integer",
       "defaultValue": 100,
-      "description": "Async executor queue capacity. Must be greater than 0."
+      "description": "Async executor queue capacity. Must be greater than 0. On saturation, CallerRunsPolicy executes tasks on the caller thread."
     },
     {
       "name": "hookrouter.async.thread-name-prefix",
@@ -249,6 +249,34 @@
         },
         {
           "value": 5000
+        }
+      ]
+    },
+    {
+      "name": "hookrouter.async.max-pool-size",
+      "values": [
+        {
+          "value": 10
+        },
+        {
+          "value": 16
+        },
+        {
+          "value": 32
+        }
+      ]
+    },
+    {
+      "name": "hookrouter.bulkhead.max-concurrent-calls",
+      "values": [
+        {
+          "value": 5
+        },
+        {
+          "value": 10
+        },
+        {
+          "value": 16
         }
       ]
     }

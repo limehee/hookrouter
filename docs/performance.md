@@ -15,3 +15,4 @@ Operational advice:
 - tune per-endpoint overrides for critical channels
 - monitor retry/failure trends and dead-letter volume
 - adjust timeout and rate limits incrementally
+- if async executor is saturated, work runs on caller thread (`CallerRunsPolicy`), so monitor request latency under peak load
