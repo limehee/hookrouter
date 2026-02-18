@@ -25,4 +25,6 @@ public interface WebhookMetrics {
 
     void recordExternalRateLimitDetected(String platform, String webhookKey, String typeId,
         @Nullable Long retryAfterMillis);
+
+    void recordAsyncCallerRuns();
 }

@@ -2,9 +2,12 @@ package io.github.limehee.hookrouter.spring.async;
 
 import io.github.limehee.hookrouter.spring.config.WebhookConfigProperties;
 import io.github.limehee.hookrouter.spring.config.WebhookConfigProperties.AsyncProperties;
+import io.github.limehee.hookrouter.spring.metrics.NoOpWebhookMetrics;
+import io.github.limehee.hookrouter.spring.metrics.WebhookMetrics;
 import java.util.concurrent.Executor;
 import java.util.concurrent.RejectedExecutionHandler;
 import java.util.concurrent.ThreadPoolExecutor;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.env.Environment;
@@ -19,10 +22,14 @@ public class WebhookAsyncConfig {
     private static final String VIRTUAL_THREADS_ENABLED_PROPERTY = "spring.threads.virtual.enabled";
     private final WebhookConfigProperties configProperties;
     private final Environment environment;
+    private final ObjectProvider<WebhookMetrics> webhookMetricsProvider;
+    private final RejectedExecutionHandler callerRunsPolicy = new ThreadPoolExecutor.CallerRunsPolicy();
 
-    public WebhookAsyncConfig(final WebhookConfigProperties configProperties, final Environment environment) {
+    public WebhookAsyncConfig(final WebhookConfigProperties configProperties, final Environment environment,
+        final ObjectProvider<WebhookMetrics> webhookMetricsProvider) {
         this.configProperties = configProperties;
         this.environment = environment;
+        this.webhookMetricsProvider = webhookMetricsProvider;
     }
 
     @Bean(name = "webhookTaskExecutor")
@@ -62,7 +69,18 @@ public class WebhookAsyncConfig {
     }
 
     private RejectedExecutionHandler createRejectedExecutionHandler() {
-        return new ThreadPoolExecutor.CallerRunsPolicy();
+        return (task, executor) -> {
+            resolveWebhookMetrics().recordAsyncCallerRuns();
+            callerRunsPolicy.rejectedExecution(task, executor);
+        };
+    }
+
+    private WebhookMetrics resolveWebhookMetrics() {
+        WebhookMetrics webhookMetrics = webhookMetricsProvider.getIfAvailable();
+        if (webhookMetrics == null) {
+            return NoOpWebhookMetrics.INSTANCE;
+        }
+        return webhookMetrics;
     }
 
     private boolean isVirtualThreadSupported() {

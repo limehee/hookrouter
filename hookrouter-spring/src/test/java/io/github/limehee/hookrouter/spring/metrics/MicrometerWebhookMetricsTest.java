@@ -301,6 +301,20 @@ class MicrometerWebhookMetricsTest {
     }
 
     @Nested
+    class RecordAsyncCallerRunsTest {
+
+        @Test
+        void shouldReturnNotNullCounterWhenRecordAsyncCallerRuns() {
+            webhookMetrics.recordAsyncCallerRuns();
+            webhookMetrics.recordAsyncCallerRuns();
+
+            Counter counter = meterRegistry.find("hookrouter.async.caller-runs.count").counter();
+            assertThat(counter).isNotNull();
+            assertThat(counter.count()).isEqualTo(2.0);
+        }
+    }
+
+    @Nested
     class TagVerificationTest {
 
         @Test

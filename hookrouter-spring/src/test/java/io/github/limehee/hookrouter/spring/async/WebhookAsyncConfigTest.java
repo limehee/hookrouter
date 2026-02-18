@@ -2,9 +2,11 @@ package io.github.limehee.hookrouter.spring.async;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.verify;
 
 import io.github.limehee.hookrouter.spring.config.WebhookConfigProperties;
 import io.github.limehee.hookrouter.spring.config.WebhookConfigProperties.AsyncProperties;
+import io.github.limehee.hookrouter.spring.metrics.WebhookMetrics;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ThreadPoolExecutor;
@@ -16,6 +18,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.core.env.Environment;
 import org.springframework.core.task.SimpleAsyncTaskExecutor;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
@@ -33,6 +36,12 @@ class WebhookAsyncConfigTest {
 
     @Mock
     private Environment environment;
+
+    @Mock
+    private ObjectProvider<WebhookMetrics> webhookMetricsProvider;
+
+    @Mock
+    private WebhookMetrics webhookMetrics;
 
     private AsyncProperties createDefaultAsyncProperties() {
         AsyncProperties async = new AsyncProperties();
@@ -160,8 +169,7 @@ class WebhookAsyncConfigTest {
 
             ThreadPoolTaskExecutor executor = (ThreadPoolTaskExecutor) config.webhookTaskExecutor();
 
-            assertThat(executor.getThreadPoolExecutor().getRejectedExecutionHandler())
-                .isInstanceOf(ThreadPoolExecutor.CallerRunsPolicy.class);
+            assertThat(executor.getThreadPoolExecutor().getRejectedExecutionHandler()).isNotNull();
         }
 
         @Test
@@ -195,6 +203,39 @@ class WebhookAsyncConfigTest {
             releaseFirstTask.countDown();
 
             assertThat(secondTaskThreadName.get()).isEqualTo(callerThreadName);
+            executor.shutdown();
+        }
+
+        @Test
+        void shouldRecordCallerRunsMetricWhenPoolIsSaturated() throws Exception {
+            AsyncProperties async = createDefaultAsyncProperties();
+            async.setCorePoolSize(1);
+            async.setMaxPoolSize(1);
+            async.setQueueCapacity(0);
+            given(environment.getProperty(VIRTUAL_THREADS_PROPERTY, Boolean.class, false))
+                .willReturn(false);
+            given(configProperties.getAsync()).willReturn(async);
+            given(webhookMetricsProvider.getIfAvailable()).willReturn(webhookMetrics);
+
+            ThreadPoolTaskExecutor executor = (ThreadPoolTaskExecutor) config.webhookTaskExecutor();
+            CountDownLatch firstTaskStarted = new CountDownLatch(1);
+            CountDownLatch releaseFirstTask = new CountDownLatch(1);
+
+            executor.execute(() -> {
+                firstTaskStarted.countDown();
+                try {
+                    releaseFirstTask.await(2, TimeUnit.SECONDS);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+            });
+
+            assertThat(firstTaskStarted.await(1, TimeUnit.SECONDS)).isTrue();
+            executor.execute(() -> {
+            });
+            releaseFirstTask.countDown();
+
+            verify(webhookMetrics).recordAsyncCallerRuns();
             executor.shutdown();
         }
     }

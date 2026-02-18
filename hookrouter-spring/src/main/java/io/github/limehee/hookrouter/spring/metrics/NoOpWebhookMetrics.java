@@ -60,4 +60,9 @@ public final class NoOpWebhookMetrics implements WebhookMetrics {
         @Nullable Long retryAfterMillis) {
         // Intentionally empty - Null Object pattern
     }
+
+    @Override
+    public void recordAsyncCallerRuns() {
+        // Intentionally empty - Null Object pattern
+    }
 }

@@ -86,6 +86,11 @@ public class MicrometerWebhookMetrics implements WebhookMetrics {
         }
     }
 
+    @Override
+    public void recordAsyncCallerRuns() {
+        meterRegistry.counter(METRIC_PREFIX + ".async.caller-runs.count").increment();
+    }
+
     private void recordSendDuration(String platform, String webhookKey, String typeId, String result,
         Duration duration) {
         meterRegistry.timer(METRIC_PREFIX + ".send.duration", TAG_PLATFORM, platform, TAG_WEBHOOK_KEY, webhookKey,

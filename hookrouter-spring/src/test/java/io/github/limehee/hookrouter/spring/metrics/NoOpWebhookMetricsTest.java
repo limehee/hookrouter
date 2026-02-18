@@ -125,6 +125,10 @@ class NoOpWebhookMetricsTest {
             assertThatCode(() ->
                 NoOpWebhookMetrics.INSTANCE.recordDeadLetter(null, null, null, null)
             ).doesNotThrowAnyException();
+
+            assertThatCode(() ->
+                NoOpWebhookMetrics.INSTANCE.recordAsyncCallerRuns()
+            ).doesNotThrowAnyException();
         }
     }
 }
