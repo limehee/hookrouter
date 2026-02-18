@@ -20,6 +20,15 @@ Check:
 
 Check:
 
-- `OSSRH_USERNAME`, `OSSRH_PASSWORD`
+- Central Portal user token is valid (token username/password)
+- token values are mapped to `OSSRH_USERNAME`, `OSSRH_PASSWORD` secrets
 - `SIGNING_KEY`, `SIGNING_PASSWORD`
 - version/tag consistency
+
+## Published but not searchable yet
+
+Check:
+
+- Central deployment state is `PUBLISHED`
+- repository URL resolves artifact path directly (for example `repo1.maven.org`)
+- allow indexing propagation delay before Maven Central search UI reflects the new coordinates

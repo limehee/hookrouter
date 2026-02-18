@@ -10,6 +10,23 @@
 - `hookrouter-core`: domain model, registries, and contracts
 - `hookrouter-spring`: Spring runtime pipeline, configuration, resilience, dead-letter, metrics
 
+## Dependencies (Maven)
+
+```xml
+<dependencies>
+  <dependency>
+    <groupId>io.github.limehee</groupId>
+    <artifactId>hookrouter-core</artifactId>
+    <version>${hookrouter.version}</version>
+  </dependency>
+  <dependency>
+    <groupId>io.github.limehee</groupId>
+    <artifactId>hookrouter-spring</artifactId>
+    <version>${hookrouter.version}</version>
+  </dependency>
+</dependencies>
+```
+
 ## Dependencies (Gradle)
 
 Groovy DSL:
