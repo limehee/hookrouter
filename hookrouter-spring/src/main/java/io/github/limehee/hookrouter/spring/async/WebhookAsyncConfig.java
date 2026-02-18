@@ -62,8 +62,7 @@ public class WebhookAsyncConfig {
     }
 
     private RejectedExecutionHandler createRejectedExecutionHandler() {
-        return (Runnable r, ThreadPoolExecutor e) -> {
-        };
+        return new ThreadPoolExecutor.CallerRunsPolicy();
     }
 
     private boolean isVirtualThreadSupported() {

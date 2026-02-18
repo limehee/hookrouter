@@ -5,7 +5,11 @@ import static org.mockito.BDDMockito.given;
 
 import io.github.limehee.hookrouter.spring.config.WebhookConfigProperties;
 import io.github.limehee.hookrouter.spring.config.WebhookConfigProperties.AsyncProperties;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executor;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -146,6 +150,52 @@ class WebhookAsyncConfigTest {
             assertThat(executor.getMaxPoolSize()).isEqualTo(10);
             assertThat(executor.getQueueCapacity()).isEqualTo(100);
             assertThat(executor.getThreadNamePrefix()).isEqualTo("hookrouter-");
+        }
+
+        @Test
+        void shouldUseCallerRunsPolicyForRejectedExecution() {
+            given(environment.getProperty(VIRTUAL_THREADS_PROPERTY, Boolean.class, false))
+                .willReturn(false);
+            given(configProperties.getAsync()).willReturn(createDefaultAsyncProperties());
+
+            ThreadPoolTaskExecutor executor = (ThreadPoolTaskExecutor) config.webhookTaskExecutor();
+
+            assertThat(executor.getThreadPoolExecutor().getRejectedExecutionHandler())
+                .isInstanceOf(ThreadPoolExecutor.CallerRunsPolicy.class);
+        }
+
+        @Test
+        void shouldRunTaskInCallerThreadWhenPoolIsSaturated() throws Exception {
+            AsyncProperties async = createDefaultAsyncProperties();
+            async.setCorePoolSize(1);
+            async.setMaxPoolSize(1);
+            async.setQueueCapacity(0);
+            given(environment.getProperty(VIRTUAL_THREADS_PROPERTY, Boolean.class, false))
+                .willReturn(false);
+            given(configProperties.getAsync()).willReturn(async);
+
+            ThreadPoolTaskExecutor executor = (ThreadPoolTaskExecutor) config.webhookTaskExecutor();
+            CountDownLatch firstTaskStarted = new CountDownLatch(1);
+            CountDownLatch releaseFirstTask = new CountDownLatch(1);
+
+            executor.execute(() -> {
+                firstTaskStarted.countDown();
+                try {
+                    releaseFirstTask.await(2, TimeUnit.SECONDS);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+            });
+
+            assertThat(firstTaskStarted.await(1, TimeUnit.SECONDS)).isTrue();
+            String callerThreadName = Thread.currentThread().getName();
+            AtomicReference<String> secondTaskThreadName = new AtomicReference<>();
+
+            executor.execute(() -> secondTaskThreadName.set(Thread.currentThread().getName()));
+            releaseFirstTask.countDown();
+
+            assertThat(secondTaskThreadName.get()).isEqualTo(callerThreadName);
+            executor.shutdown();
         }
     }
 
