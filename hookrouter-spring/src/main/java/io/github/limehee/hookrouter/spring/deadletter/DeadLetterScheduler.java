@@ -58,7 +58,9 @@ public class DeadLetterScheduler implements InitializingBean, DisposableBean {
             int batchSize = properties.getDeadLetter().getSchedulerBatchSize();
             reprocessor.reprocessPending(batchSize);
         } catch (Exception e) {
-            LOGGER.warn("Dead-letter scheduled reprocessing failed", e);
+            if (LOGGER.isWarnEnabled()) {
+                LOGGER.warn("Dead-letter scheduled reprocessing failed", e);
+            }
         }
     }
 }

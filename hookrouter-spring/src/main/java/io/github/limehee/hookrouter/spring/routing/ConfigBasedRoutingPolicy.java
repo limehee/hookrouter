@@ -54,7 +54,10 @@ public class ConfigBasedRoutingPolicy implements RoutingPolicy {
             try {
                 webhookUrl = properties.getWebhookUrl(platform, webhookKey);
             } catch (Exception e) {
-                LOGGER.warn("Failed to resolve webhook URL for platform={}, webhookKey={}", platform, webhookKey, e);
+                if (LOGGER.isWarnEnabled()) {
+                    LOGGER.warn("Failed to resolve webhook URL for platform={}, webhookKey={}",
+                        platform, webhookKey, e);
+                }
                 continue;
             }
             if (webhookUrl == null) {

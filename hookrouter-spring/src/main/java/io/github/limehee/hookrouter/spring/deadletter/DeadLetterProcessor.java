@@ -79,9 +79,10 @@ public class DeadLetterProcessor {
             deadLetterHandler.handle(deadLetter);
             handlerSuccess = true;
         } catch (Exception e) {
-            LOGGER.warn("Dead-letter handler failed for typeId={}, platform={}, webhookKey={}",
-                typeId, target.platform(), target.webhookKey(),
-                e);
+            if (LOGGER.isWarnEnabled()) {
+                LOGGER.warn("Dead-letter handler failed for typeId={}, platform={}, webhookKey={}",
+                    typeId, target.platform(), target.webhookKey(), e);
+            }
         } finally {
             recordDeadLetterMetric(target, typeId, deadLetter.reason(), handlerSuccess);
         }
@@ -95,9 +96,10 @@ public class DeadLetterProcessor {
                 metrics.recordDeadLetterHandlerFailure(target.platform(), target.webhookKey(), typeId);
             }
         } catch (Exception e) {
-            LOGGER.warn("Dead-letter metric recording failed for typeId={}, platform={}, webhookKey={}, reason={}",
-                typeId, target.platform(), target.webhookKey(), reason.name(),
-                e);
+            if (LOGGER.isWarnEnabled()) {
+                LOGGER.warn("Dead-letter metric recording failed for typeId={}, platform={}, webhookKey={}, reason={}",
+                    typeId, target.platform(), target.webhookKey(), reason.name(), e);
+            }
         }
     }
 }

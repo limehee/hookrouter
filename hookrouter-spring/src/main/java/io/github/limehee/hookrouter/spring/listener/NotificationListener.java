@@ -51,8 +51,10 @@ public class NotificationListener {
                 dispatchToTarget(notification, target);
             }
         } catch (Exception e) {
-            LOGGER.error("Failed to process notification typeId={}, category={}",
-                typeId, notification.getCategory(), e);
+            if (LOGGER.isErrorEnabled()) {
+                LOGGER.error("Failed to process notification typeId={}, category={}",
+                    typeId, notification.getCategory(), e);
+            }
         }
     }
 
@@ -101,8 +103,10 @@ public class NotificationListener {
         } catch (ClassCastException e) {
             return new PayloadResult(null, "Formatter type cast failed: " + e.getMessage());
         } catch (Exception e) {
-            LOGGER.warn("Formatter failed for typeId={}, platform={}",
-                notification.getTypeId(), formatter.platform(), e);
+            if (LOGGER.isWarnEnabled()) {
+                LOGGER.warn("Formatter failed for typeId={}, platform={}",
+                    notification.getTypeId(), formatter.platform(), e);
+            }
             return new PayloadResult(null,
                 "Formatter execution failed: " + (e.getMessage() != null ? e.getMessage() : e.getClass().getName()));
         }
