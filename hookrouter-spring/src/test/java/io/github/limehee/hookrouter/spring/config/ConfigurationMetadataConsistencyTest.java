@@ -4,90 +4,204 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.nio.charset.StandardCharsets;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
+import java.math.BigDecimal;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 import org.junit.jupiter.api.Test;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.json.JsonMapper;
 
 class ConfigurationMetadataConsistencyTest {
 
     private static final String METADATA_PATH = "/META-INF/additional-spring-configuration-metadata.json";
+    private static final Set<String> EXPECTED_PROPERTY_NAMES = Set.of(
+        "hookrouter.platforms",
+        "hookrouter.type-mappings",
+        "hookrouter.category-mappings",
+        "hookrouter.default-mappings",
+        "hookrouter.retry.enabled",
+        "hookrouter.retry.max-attempts",
+        "hookrouter.retry.initial-delay",
+        "hookrouter.retry.max-delay",
+        "hookrouter.retry.multiplier",
+        "hookrouter.retry.jitter-factor",
+        "hookrouter.timeout.enabled",
+        "hookrouter.timeout.duration",
+        "hookrouter.circuit-breaker.enabled",
+        "hookrouter.circuit-breaker.failure-threshold",
+        "hookrouter.circuit-breaker.failure-rate-threshold",
+        "hookrouter.circuit-breaker.wait-duration",
+        "hookrouter.circuit-breaker.success-threshold",
+        "hookrouter.rate-limiter.enabled",
+        "hookrouter.rate-limiter.limit-for-period",
+        "hookrouter.rate-limiter.limit-refresh-period",
+        "hookrouter.rate-limiter.timeout-duration",
+        "hookrouter.bulkhead.enabled",
+        "hookrouter.bulkhead.max-concurrent-calls",
+        "hookrouter.bulkhead.max-wait-duration",
+        "hookrouter.dead-letter.enabled",
+        "hookrouter.dead-letter.max-retries",
+        "hookrouter.dead-letter.scheduler-enabled",
+        "hookrouter.dead-letter.scheduler-interval",
+        "hookrouter.dead-letter.scheduler-batch-size",
+        "hookrouter.async.core-pool-size",
+        "hookrouter.async.max-pool-size",
+        "hookrouter.async.queue-capacity",
+        "hookrouter.async.thread-name-prefix",
+        "hookrouter.async.await-termination-seconds"
+    );
+
+    @Test
+    void shouldContainMetadataEntriesForAllSupportedProperties() throws IOException {
+        JsonNode metadata = loadMetadata();
+        Map<String, JsonNode> propertiesByName = toPropertyMap(metadata);
+
+        assertThat(propertiesByName.keySet()).isEqualTo(EXPECTED_PROPERTY_NAMES);
+    }
+
+    @Test
+    void shouldProvideTypeAndDescriptionForEveryProperty() throws IOException {
+        JsonNode metadata = loadMetadata();
+        Map<String, JsonNode> propertiesByName = toPropertyMap(metadata);
+
+        for (Map.Entry<String, JsonNode> entry : propertiesByName.entrySet()) {
+            JsonNode property = entry.getValue();
+            assertThat(property.required("type").asString()).as("type for %s", entry.getKey()).isNotBlank();
+            assertThat(property.required("description").asString()).as("description for %s", entry.getKey())
+                .isNotBlank();
+        }
+    }
 
     @Test
     void shouldDescribeCrossFieldConstraintsForValidatedProperties() throws IOException {
-        String propertiesSection = loadPropertiesSection();
+        Map<String, JsonNode> propertiesByName = toPropertyMap(loadMetadata());
 
-        assertThat(findPropertyBlock(propertiesSection, "hookrouter.retry.max-delay"))
+        assertThat(propertiesByName.get("hookrouter.retry.max-delay").required("description").asString())
             .contains("timeout.duration");
-        assertThat(findPropertyBlock(propertiesSection, "hookrouter.timeout.duration"))
+        assertThat(propertiesByName.get("hookrouter.timeout.duration").required("description").asString())
             .contains("retry.max-delay")
             .contains("rate limiter")
             .contains("bulkhead");
-        assertThat(findPropertyBlock(propertiesSection, "hookrouter.rate-limiter.timeout-duration"))
+        assertThat(propertiesByName.get("hookrouter.rate-limiter.timeout-duration").required("description").asString())
             .contains("timeout.duration");
-        assertThat(findPropertyBlock(propertiesSection, "hookrouter.bulkhead.max-concurrent-calls"))
+        assertThat(propertiesByName.get("hookrouter.bulkhead.max-concurrent-calls").required("description").asString())
             .contains("async.max-pool-size");
-        assertThat(findPropertyBlock(propertiesSection, "hookrouter.bulkhead.max-wait-duration"))
+        assertThat(propertiesByName.get("hookrouter.bulkhead.max-wait-duration").required("description").asString())
             .contains("timeout.duration");
     }
 
     @Test
     void shouldKeepMetadataDefaultsAlignedWithWebhookConfigPropertiesDefaults() throws IOException {
-        String propertiesSection = loadPropertiesSection();
-        WebhookConfigProperties properties = new WebhookConfigProperties();
+        Map<String, JsonNode> propertiesByName = toPropertyMap(loadMetadata());
+        Map<String, JsonNode> defaultsInMetadata = propertiesByName.entrySet()
+            .stream()
+            .filter(entry -> entry.getValue().has("defaultValue"))
+            .collect(Collectors.toMap(Map.Entry::getKey, entry -> entry.getValue().get("defaultValue")));
+        Map<String, Object> expectedDefaults = expectedDefaultValues();
 
-        assertThat(extractDefaultValue(propertiesSection, "hookrouter.retry.max-attempts"))
-            .isEqualTo(String.valueOf(properties.getRetry().getMaxAttempts()));
-        assertThat(extractDefaultValue(propertiesSection, "hookrouter.retry.initial-delay"))
-            .isEqualTo(String.valueOf(properties.getRetry().getInitialDelay()));
-        assertThat(extractDefaultValue(propertiesSection, "hookrouter.retry.max-delay"))
-            .isEqualTo(String.valueOf(properties.getRetry().getMaxDelay()));
-        assertThat(extractDefaultValue(propertiesSection, "hookrouter.retry.multiplier"))
-            .isEqualTo(String.valueOf(properties.getRetry().getMultiplier()));
-        assertThat(extractDefaultValue(propertiesSection, "hookrouter.timeout.duration"))
-            .isEqualTo(String.valueOf(properties.getTimeout().getDuration()));
-        assertThat(extractDefaultValue(propertiesSection, "hookrouter.rate-limiter.timeout-duration"))
-            .isEqualTo(String.valueOf(properties.getRateLimiter().getTimeoutDuration()));
-        assertThat(extractDefaultValue(propertiesSection, "hookrouter.bulkhead.max-concurrent-calls"))
-            .isEqualTo(String.valueOf(properties.getBulkhead().getMaxConcurrentCalls()));
-        assertThat(extractDefaultValue(propertiesSection, "hookrouter.async.max-pool-size"))
-            .isEqualTo(String.valueOf(properties.getAsync().getMaxPoolSize()));
+        assertThat(defaultsInMetadata.keySet()).isEqualTo(expectedDefaults.keySet());
+        expectedDefaults.forEach(
+            (name, expectedValue) -> assertJsonDefaultValue(defaultsInMetadata.get(name), expectedValue, name));
     }
 
-    private String loadPropertiesSection() throws IOException {
+    @Test
+    void shouldUseHintsOnlyForKnownProperties() throws IOException {
+        JsonNode metadata = loadMetadata();
+        Map<String, JsonNode> propertiesByName = toPropertyMap(metadata);
+        Set<String> hintNames = StreamSupport.stream(metadata.path("hints").spliterator(), false)
+            .map(hint -> hint.required("name").asString())
+            .collect(Collectors.toSet());
+
+        assertThat(hintNames).allMatch(propertiesByName::containsKey);
+    }
+
+    private JsonNode loadMetadata() throws IOException {
         try (InputStream inputStream = getClass().getResourceAsStream(METADATA_PATH)) {
             assertThat(inputStream).as("metadata file must be present").isNotNull();
-            String metadata = new String(inputStream.readAllBytes(), StandardCharsets.UTF_8);
-            int propertiesIndex = metadata.indexOf("\"properties\"");
-            int hintsIndex = metadata.indexOf("\"hints\"");
-            assertThat(propertiesIndex).isGreaterThanOrEqualTo(0);
-            assertThat(hintsIndex).isGreaterThan(propertiesIndex);
-            return metadata.substring(propertiesIndex, hintsIndex);
+            return JsonMapper.builder().build().readTree(inputStream);
         }
     }
 
-    private String findPropertyBlock(String propertiesSection, String propertyName) {
-        String quotedPropertyName = Pattern.quote(propertyName);
-        Pattern pattern = Pattern.compile(
-            "\\{\\s*\"name\"\\s*:\\s*\"" + quotedPropertyName + "\"[\\s\\S]*?\\}",
-            Pattern.MULTILINE
-        );
-        Matcher matcher = pattern.matcher(propertiesSection);
-        assertThat(matcher.find()).as("property block not found: " + propertyName).isTrue();
-        return matcher.group();
+    private Map<String, JsonNode> toPropertyMap(JsonNode metadata) {
+        Map<String, JsonNode> properties = new LinkedHashMap<>();
+        for (JsonNode propertyNode : metadata.path("properties")) {
+            properties.put(propertyNode.required("name").asString(), propertyNode);
+        }
+        return properties;
     }
 
-    private String extractDefaultValue(String propertiesSection, String propertyName) {
-        String propertyBlock = findPropertyBlock(propertiesSection, propertyName);
-        Pattern pattern = Pattern.compile(
-            "\"defaultValue\"\\s*:\\s*(\"([^\"]*)\"|[0-9]+(?:\\.[0-9]+)?|true|false)"
-        );
-        Matcher matcher = pattern.matcher(propertyBlock);
-        assertThat(matcher.find()).as("defaultValue not found: " + propertyName).isTrue();
-        String rawValue = matcher.group(1);
-        if (rawValue.startsWith("\"") && rawValue.endsWith("\"")) {
-            return rawValue.substring(1, rawValue.length() - 1);
+    private Map<String, Object> expectedDefaultValues() {
+        WebhookConfigProperties properties = new WebhookConfigProperties();
+        Map<String, Object> expectedDefaults = new LinkedHashMap<>();
+        expectedDefaults.put("hookrouter.retry.enabled", properties.getRetry().isEnabled());
+        expectedDefaults.put("hookrouter.retry.max-attempts", properties.getRetry().getMaxAttempts());
+        expectedDefaults.put("hookrouter.retry.initial-delay", properties.getRetry().getInitialDelay());
+        expectedDefaults.put("hookrouter.retry.max-delay", properties.getRetry().getMaxDelay());
+        expectedDefaults.put("hookrouter.retry.multiplier", properties.getRetry().getMultiplier());
+        expectedDefaults.put("hookrouter.retry.jitter-factor", properties.getRetry().getJitterFactor());
+        expectedDefaults.put("hookrouter.timeout.enabled", properties.getTimeout().isEnabled());
+        expectedDefaults.put("hookrouter.timeout.duration", properties.getTimeout().getDuration());
+        expectedDefaults.put("hookrouter.circuit-breaker.enabled", properties.getCircuitBreaker().isEnabled());
+        expectedDefaults.put("hookrouter.circuit-breaker.failure-threshold",
+            properties.getCircuitBreaker().getFailureThreshold());
+        expectedDefaults.put("hookrouter.circuit-breaker.failure-rate-threshold",
+            properties.getCircuitBreaker().getFailureRateThreshold());
+        expectedDefaults.put("hookrouter.circuit-breaker.wait-duration",
+            properties.getCircuitBreaker().getWaitDuration());
+        expectedDefaults.put("hookrouter.circuit-breaker.success-threshold",
+            properties.getCircuitBreaker().getSuccessThreshold());
+        expectedDefaults.put("hookrouter.rate-limiter.enabled", properties.getRateLimiter().isEnabled());
+        expectedDefaults.put("hookrouter.rate-limiter.limit-for-period",
+            properties.getRateLimiter().getLimitForPeriod());
+        expectedDefaults.put("hookrouter.rate-limiter.limit-refresh-period",
+            properties.getRateLimiter().getLimitRefreshPeriod());
+        expectedDefaults.put("hookrouter.rate-limiter.timeout-duration",
+            properties.getRateLimiter().getTimeoutDuration());
+        expectedDefaults.put("hookrouter.bulkhead.enabled", properties.getBulkhead().isEnabled());
+        expectedDefaults.put("hookrouter.bulkhead.max-concurrent-calls",
+            properties.getBulkhead().getMaxConcurrentCalls());
+        expectedDefaults.put("hookrouter.bulkhead.max-wait-duration", properties.getBulkhead().getMaxWaitDuration());
+        expectedDefaults.put("hookrouter.dead-letter.enabled", properties.getDeadLetter().isEnabled());
+        expectedDefaults.put("hookrouter.dead-letter.max-retries", properties.getDeadLetter().getMaxRetries());
+        expectedDefaults.put("hookrouter.dead-letter.scheduler-enabled",
+            properties.getDeadLetter().isSchedulerEnabled());
+        expectedDefaults.put("hookrouter.dead-letter.scheduler-interval",
+            properties.getDeadLetter().getSchedulerInterval());
+        expectedDefaults.put("hookrouter.dead-letter.scheduler-batch-size",
+            properties.getDeadLetter().getSchedulerBatchSize());
+        expectedDefaults.put("hookrouter.async.core-pool-size", properties.getAsync().getCorePoolSize());
+        expectedDefaults.put("hookrouter.async.max-pool-size", properties.getAsync().getMaxPoolSize());
+        expectedDefaults.put("hookrouter.async.queue-capacity", properties.getAsync().getQueueCapacity());
+        expectedDefaults.put("hookrouter.async.thread-name-prefix", properties.getAsync().getThreadNamePrefix());
+        expectedDefaults.put("hookrouter.async.await-termination-seconds",
+            properties.getAsync().getAwaitTerminationSeconds());
+        return expectedDefaults;
+    }
+
+    private void assertJsonDefaultValue(JsonNode actualNode, Object expectedValue, String propertyName) {
+        assertThat(actualNode).as("defaultValue exists for %s", propertyName).isNotNull();
+        if (expectedValue instanceof Boolean expectedBoolean) {
+            assertThat(actualNode.isBoolean()).as("boolean default for %s", propertyName).isTrue();
+            assertThat(actualNode.booleanValue()).isEqualTo(expectedBoolean);
+            return;
         }
-        return rawValue;
+        if (expectedValue instanceof String expectedString) {
+            assertThat(actualNode.isString()).as("string default for %s", propertyName).isTrue();
+            assertThat(actualNode.stringValue()).isEqualTo(expectedString);
+            return;
+        }
+        if (expectedValue instanceof Number expectedNumber) {
+            assertThat(actualNode.isNumber()).as("numeric default for %s", propertyName).isTrue();
+            BigDecimal actualNumber = actualNode.decimalValue();
+            BigDecimal expectedAsDecimal = new BigDecimal(expectedNumber.toString());
+            assertThat(actualNumber.compareTo(expectedAsDecimal))
+                .as("numeric default for %s", propertyName)
+                .isZero();
+            return;
+        }
+        throw new IllegalArgumentException("Unsupported default value type for " + propertyName + ": " + expectedValue);
     }
 }
