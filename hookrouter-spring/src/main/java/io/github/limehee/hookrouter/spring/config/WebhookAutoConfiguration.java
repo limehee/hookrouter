@@ -22,6 +22,7 @@ import io.github.limehee.hookrouter.spring.deadletter.NoOpDeadLetterHandler;
 import io.github.limehee.hookrouter.spring.deadletter.StoringDeadLetterHandler;
 import io.github.limehee.hookrouter.spring.dispatcher.WebhookDispatcher;
 import io.github.limehee.hookrouter.spring.listener.NotificationListener;
+import io.github.limehee.hookrouter.spring.listener.NotificationProcessingGateway;
 import io.github.limehee.hookrouter.spring.metrics.MicrometerWebhookMetrics;
 import io.github.limehee.hookrouter.spring.metrics.NoOpWebhookMetrics;
 import io.github.limehee.hookrouter.spring.metrics.WebhookMetrics;
@@ -202,8 +203,9 @@ public class WebhookAutoConfiguration {
 
     @Bean
     @ConditionalOnBean(DeadLetterStore.class)
-    public DeadLetterReprocessor deadLetterReprocessor(DeadLetterStore store, NotificationPublisher publisher) {
-        return new DeadLetterReprocessor(store, publisher);
+    public DeadLetterReprocessor deadLetterReprocessor(DeadLetterStore store,
+        NotificationProcessingGateway notificationProcessor) {
+        return new DeadLetterReprocessor(store, notificationProcessor);
     }
 
     @Bean

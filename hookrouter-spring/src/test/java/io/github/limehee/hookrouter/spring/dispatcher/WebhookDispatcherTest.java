@@ -643,5 +643,49 @@ class WebhookDispatcherTest {
                 verify(slackSender, times(1)).send(anyString(), any());
             }
         }
+
+        @Nested
+        class DispatchResultTest {
+
+            @Test
+            void shouldReturnSuccessResultWhenSendSucceeds() {
+                configProperties.getRetry().setEnabled(false);
+                dispatcher = createDispatcher();
+
+                Notification<TestContext> notification = createNotification("test-type");
+                RoutingTarget target = createRoutingTarget("slack", "slack-key", "https://hooks.slack.com/test");
+                Map<String, Object> payload = Map.of("text", "Hello");
+
+                given(slackSender.send(anyString(), any())).willReturn(SendResult.success(200));
+
+                WebhookDispatcher.DispatchResult result = dispatcher.dispatch(notification, target, slackSender, payload);
+
+                assertThat(result.success()).isTrue();
+                assertThat(result.errorMessage()).isNull();
+            }
+
+            @Test
+            void shouldReturnFailureResultWhenRateLimiterRejects() {
+                configProperties.getRetry().setEnabled(false);
+                configProperties.getRateLimiter().setEnabled(true);
+                configProperties.getRateLimiter().setLimitForPeriod(1);
+                configProperties.getRateLimiter().setLimitRefreshPeriod(60000);
+                configProperties.getRateLimiter().setTimeoutDuration(0);
+                rateLimiterRegistry = createRateLimiterRegistry();
+                dispatcher = createDispatcher();
+
+                Notification<TestContext> notification = createNotification("test-type");
+                RoutingTarget target = createRoutingTarget("slack", "slack-key", "https://hooks.slack.com/test");
+                Map<String, Object> payload = Map.of("text", "Hello");
+
+                given(slackSender.send(anyString(), any())).willReturn(SendResult.success(200));
+
+                dispatcher.dispatch(notification, target, slackSender, payload);
+                WebhookDispatcher.DispatchResult result = dispatcher.dispatch(notification, target, slackSender, payload);
+
+                assertThat(result.success()).isFalse();
+                assertThat(result.errorMessage()).isEqualTo("rate limited");
+            }
+        }
     }
 }

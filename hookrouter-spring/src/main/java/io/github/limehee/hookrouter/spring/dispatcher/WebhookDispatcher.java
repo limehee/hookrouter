@@ -85,7 +85,7 @@ public class WebhookDispatcher {
         this.eventPublisher = eventPublisher;
     }
 
-    public <T> void dispatch(
+    public <T> DispatchResult dispatch(
         Notification<T> notification,
         RoutingTarget target,
         WebhookSender sender,
@@ -115,7 +115,7 @@ public class WebhookDispatcher {
             if (!acquireRateLimiterPermission(resilienceKey, rateLimiterProps)) {
                 metrics.recordSendRateLimited(platform, webhookKey, typeId);
                 deadLetterProcessor.processRateLimited(notification, target, payload);
-                return;
+                return DispatchResult.failure("rate limited");
             }
 
             bulkhead = getBulkhead(resilienceKey, bulkheadProps);
@@ -123,7 +123,7 @@ public class WebhookDispatcher {
                 if (!bulkhead.tryAcquirePermission()) {
                     metrics.recordSendBulkheadFull(platform, webhookKey, typeId);
                     deadLetterProcessor.processBulkheadFull(notification, target, payload);
-                    return;
+                    return DispatchResult.failure("bulkhead is full");
                 }
                 bulkheadPermissionAcquired = true;
             }
@@ -131,7 +131,7 @@ public class WebhookDispatcher {
             CircuitBreaker circuitBreaker = getCircuitBreaker(resilienceKey, circuitBreakerProps);
             if (circuitBreaker != null && !circuitBreaker.tryAcquirePermission()) {
                 metrics.recordSendSkipped(platform, webhookKey, typeId);
-                return;
+                return DispatchResult.failure("circuit breaker is open");
             }
 
             metrics.recordSendAttempt(platform, webhookKey, typeId);
@@ -149,7 +149,7 @@ public class WebhookDispatcher {
             int attemptCount = resultWithAttempts.attemptCount();
             Duration duration = Duration.between(startTime, Instant.now());
 
-            handleResult(
+            return handleResult(
                 notification,
                 target,
                 payload,
@@ -159,7 +159,7 @@ public class WebhookDispatcher {
                 circuitBreaker
             );
         } catch (Exception e) {
-            handleException(
+            return handleException(
                 notification,
                 target,
                 payload,
@@ -230,7 +230,7 @@ public class WebhookDispatcher {
         return circuitBreakerRegistry.circuitBreaker(resilienceKey, config);
     }
 
-    private <T> void handleResult(
+    private <T> DispatchResult handleResult(
         Notification<T> notification,
         RoutingTarget target,
         Object payload,
@@ -248,7 +248,7 @@ public class WebhookDispatcher {
                 circuitBreaker.onSuccess(0, TimeUnit.MILLISECONDS);
             }
             metrics.recordSendSuccess(platform, webhookKey, typeId, duration);
-            return;
+            return DispatchResult.ok();
         }
 
         if (circuitBreaker != null) {
@@ -274,9 +274,10 @@ public class WebhookDispatcher {
             duration
         );
         deadLetterProcessor.processSendFailure(notification, target, payload, result, attemptCount);
+        return DispatchResult.failure(Objects.requireNonNullElse(result.errorMessage(), "send failed"));
     }
 
-    private <T> void handleException(
+    private <T> DispatchResult handleException(
         Notification<T> notification,
         RoutingTarget target,
         Object payload,
@@ -305,6 +306,7 @@ public class WebhookDispatcher {
             duration
         );
         deadLetterProcessor.processException(notification, target, payload, exception);
+        return DispatchResult.failure("exception: " + exception.getMessage());
     }
 
     private void publishRateLimitDetectedEvent(
@@ -433,6 +435,17 @@ public class WebhookDispatcher {
 
         WebhookSendFailureException(@Nullable String message) {
             super(message, null, false, false);
+        }
+    }
+
+    public record DispatchResult(boolean success, @Nullable String errorMessage) {
+
+        public static DispatchResult ok() {
+            return new DispatchResult(true, null);
+        }
+
+        public static DispatchResult failure(String errorMessage) {
+            return new DispatchResult(false, errorMessage);
         }
     }
 

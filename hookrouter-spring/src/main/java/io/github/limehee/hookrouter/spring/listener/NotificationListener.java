@@ -8,6 +8,7 @@ import io.github.limehee.hookrouter.core.port.WebhookSender;
 import io.github.limehee.hookrouter.core.registry.FormatterRegistry;
 import io.github.limehee.hookrouter.spring.deadletter.DeadLetterProcessor;
 import io.github.limehee.hookrouter.spring.dispatcher.WebhookDispatcher;
+import io.github.limehee.hookrouter.spring.dispatcher.WebhookDispatcher.DispatchResult;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
@@ -18,7 +19,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Async;
 
-public class NotificationListener {
+public class NotificationListener implements NotificationProcessingGateway {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(NotificationListener.class);
     private final RoutingPolicy routingPolicy;
@@ -39,33 +40,47 @@ public class NotificationListener {
     @Async("webhookTaskExecutor")
     @EventListener
     public <T> void handleNotification(Notification<T> notification) {
+        process(notification);
+    }
+
+    @Override
+    public <T> ProcessingResult process(Notification<T> notification) {
         String typeId = notification.getTypeId();
         try {
 
             List<RoutingTarget> targets = routingPolicy.resolve(typeId, notification.getCategory());
             if (targets.isEmpty()) {
-                return;
+                return ProcessingResult.failed("No routing targets resolved");
             }
 
+            String firstFailureMessage = null;
             for (RoutingTarget target : targets) {
-                dispatchToTarget(notification, target);
+                ProcessingResult targetResult = dispatchToTarget(notification, target);
+                if (!targetResult.success() && firstFailureMessage == null) {
+                    firstFailureMessage = targetResult.errorMessage();
+                }
             }
+            if (firstFailureMessage != null) {
+                return ProcessingResult.failed(firstFailureMessage);
+            }
+            return ProcessingResult.ok();
         } catch (Exception e) {
             if (LOGGER.isErrorEnabled()) {
                 LOGGER.error("Failed to process notification typeId={}, category={}",
                     typeId, notification.getCategory(), e);
             }
+            return ProcessingResult.failed(e.getMessage() != null ? e.getMessage() : e.getClass().getName());
         }
     }
 
-    private <T> void dispatchToTarget(Notification<T> notification, RoutingTarget target) {
+    private <T> ProcessingResult dispatchToTarget(Notification<T> notification, RoutingTarget target) {
         String typeId = notification.getTypeId();
         String platform = target.platform();
 
         WebhookFormatter<?, ?> formatter = formatterRegistry.getOrFallback(platform, typeId);
         if (formatter == null) {
             deadLetterProcessor.processFormatterNotFound(notification, target);
-            return;
+            return ProcessingResult.failed("Formatter not found for platform=" + platform + ", typeId=" + typeId);
         }
 
         PayloadResult payloadResult = formatPayload(notification, formatter);
@@ -75,16 +90,23 @@ public class NotificationListener {
                 ? payloadResult.errorMessage()
                 : "Formatter returned null payload";
             deadLetterProcessor.processPayloadCreationFailed(notification, target, reason);
-            return;
+            return ProcessingResult.failed(reason);
         }
 
         WebhookSender sender = senderMap.get(platform);
         if (sender == null) {
             deadLetterProcessor.processSenderNotFound(notification, target, payload);
-            return;
+            return ProcessingResult.failed("Sender not found for platform=" + platform);
         }
 
-        dispatcher.dispatch(notification, target, sender, payload);
+        DispatchResult dispatchResult = dispatcher.dispatch(notification, target, sender, payload);
+        if (!dispatchResult.success()) {
+            String errorMessage = dispatchResult.errorMessage() != null
+                ? dispatchResult.errorMessage()
+                : "Dispatch failed";
+            return ProcessingResult.failed(errorMessage);
+        }
+        return ProcessingResult.ok();
     }
 
     @SuppressWarnings("unchecked")

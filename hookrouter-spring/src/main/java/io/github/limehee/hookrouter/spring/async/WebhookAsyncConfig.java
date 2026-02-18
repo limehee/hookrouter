@@ -13,7 +13,7 @@ import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 
 @Configuration
-@EnableAsync
+@EnableAsync(proxyTargetClass = true)
 public class WebhookAsyncConfig {
 
     private static final String VIRTUAL_THREADS_ENABLED_PROPERTY = "spring.threads.virtual.enabled";

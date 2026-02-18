@@ -2,7 +2,8 @@ package io.github.limehee.hookrouter.spring.deadletter;
 
 import io.github.limehee.hookrouter.spring.deadletter.DeadLetterStore.DeadLetterStatus;
 import io.github.limehee.hookrouter.spring.deadletter.DeadLetterStore.StoredDeadLetter;
-import io.github.limehee.hookrouter.spring.publisher.NotificationPublisher;
+import io.github.limehee.hookrouter.spring.listener.NotificationProcessingGateway;
+import io.github.limehee.hookrouter.spring.listener.NotificationProcessingGateway.ProcessingResult;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
@@ -14,19 +15,20 @@ public class DeadLetterReprocessor {
     public static final long DEFAULT_MAX_DELAY_MS = 3600000L;
     public static final double DEFAULT_MULTIPLIER = 2.0;
     private final DeadLetterStore store;
-    private final NotificationPublisher publisher;
+    private final NotificationProcessingGateway notificationProcessor;
     private final long initialDelayMs;
     private final long maxDelayMs;
     private final double multiplier;
 
-    public DeadLetterReprocessor(DeadLetterStore store, NotificationPublisher publisher) {
-        this(store, publisher, DEFAULT_INITIAL_DELAY_MS, DEFAULT_MAX_DELAY_MS, DEFAULT_MULTIPLIER);
+    public DeadLetterReprocessor(DeadLetterStore store, NotificationProcessingGateway notificationProcessor) {
+        this(store, notificationProcessor, DEFAULT_INITIAL_DELAY_MS, DEFAULT_MAX_DELAY_MS, DEFAULT_MULTIPLIER);
     }
 
-    public DeadLetterReprocessor(DeadLetterStore store, NotificationPublisher publisher, long initialDelayMs,
+    public DeadLetterReprocessor(DeadLetterStore store, NotificationProcessingGateway notificationProcessor,
+        long initialDelayMs,
         long maxDelayMs, double multiplier) {
         this.store = store;
-        this.publisher = publisher;
+        this.notificationProcessor = notificationProcessor;
         this.initialDelayMs = initialDelayMs;
         this.maxDelayMs = maxDelayMs;
         this.multiplier = multiplier;
@@ -64,7 +66,16 @@ public class DeadLetterReprocessor {
         boolean success = false;
         try {
 
-            publisher.publish(storedDeadLetter.deadLetter().notification());
+            ProcessingResult processingResult = notificationProcessor.process(storedDeadLetter.deadLetter().notification());
+            if (!processingResult.success()) {
+                String errorMessage = processingResult.errorMessage() != null
+                    ? processingResult.errorMessage()
+                    : "Reprocess delivery failed";
+                int newRetryCount = storedDeadLetter.retryCount() + 1;
+                Instant nextRetryAt = calculateNextRetryTime(newRetryCount);
+                store.updateRetryInfo(id, newRetryCount, nextRetryAt, errorMessage);
+                return ReprocessResult.failed(id, errorMessage);
+            }
 
             store.updateStatus(id, DeadLetterStatus.RESOLVED);
             success = true;

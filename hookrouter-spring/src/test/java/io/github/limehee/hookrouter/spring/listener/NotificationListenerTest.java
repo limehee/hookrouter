@@ -1,5 +1,6 @@
 package io.github.limehee.hookrouter.spring.listener;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -20,6 +21,7 @@ import io.github.limehee.hookrouter.core.port.WebhookSender;
 import io.github.limehee.hookrouter.core.registry.FormatterRegistry;
 import io.github.limehee.hookrouter.spring.deadletter.DeadLetterProcessor;
 import io.github.limehee.hookrouter.spring.dispatcher.WebhookDispatcher;
+import io.github.limehee.hookrouter.spring.dispatcher.WebhookDispatcher.DispatchResult;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -53,6 +55,7 @@ class NotificationListenerTest {
     @BeforeEach
     void setUp() {
         lenient().when(slackSender.platform()).thenReturn("slack");
+        lenient().when(dispatcher.dispatch(any(), any(), any(), any())).thenReturn(DispatchResult.ok());
         notificationListener = new NotificationListener(
             routingPolicy,
             formatterRegistry,
@@ -362,6 +365,41 @@ class NotificationListenerTest {
 
             // Then
             verify(dispatcher, times(2)).dispatch(eq(notification), any(), eq(slackSender), eq(payload));
+        }
+    }
+
+    @Nested
+    class ProcessResultTest {
+
+        @Test
+        void shouldReturnFailedWhenDispatchFails() {
+            Notification<TestContext> notification = createNotification("test-type");
+            RoutingTarget target = createRoutingTarget("slack", "slack-key", "https://hooks.slack.com/test");
+            WebhookFormatter<?, ?> formatter = createFormatter("slack", "test-type");
+            Map<String, Object> payload = Map.of("text", "Hello");
+
+            given(routingPolicy.resolve("test-type", "general")).willReturn(List.of(target));
+            doReturn(formatter).when(formatterRegistry).getOrFallback("slack", "test-type");
+            doReturn(payload).when(formatter).format(any());
+            doReturn(Object.class).when(formatter).contextClass();
+            given(dispatcher.dispatch(notification, target, slackSender, payload))
+                .willReturn(DispatchResult.failure("send failed"));
+
+            NotificationProcessingGateway.ProcessingResult result = notificationListener.process(notification);
+
+            assertThat(result.success()).isFalse();
+            assertThat(result.errorMessage()).isEqualTo("send failed");
+        }
+
+        @Test
+        void shouldReturnFailedWhenNoRoutingTargetExists() {
+            Notification<TestContext> notification = createNotification("test-type");
+            given(routingPolicy.resolve("test-type", "general")).willReturn(Collections.emptyList());
+
+            NotificationProcessingGateway.ProcessingResult result = notificationListener.process(notification);
+
+            assertThat(result.success()).isFalse();
+            assertThat(result.errorMessage()).isEqualTo("No routing targets resolved");
         }
     }
 }

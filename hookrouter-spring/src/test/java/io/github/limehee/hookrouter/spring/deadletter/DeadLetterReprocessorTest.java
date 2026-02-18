@@ -8,6 +8,7 @@ import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.willThrow;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
@@ -19,7 +20,8 @@ import io.github.limehee.hookrouter.spring.deadletter.DeadLetterReprocessor.Repr
 import io.github.limehee.hookrouter.spring.deadletter.DeadLetterReprocessor.ReprocessSummary;
 import io.github.limehee.hookrouter.spring.deadletter.DeadLetterStore.DeadLetterStatus;
 import io.github.limehee.hookrouter.spring.deadletter.DeadLetterStore.StoredDeadLetter;
-import io.github.limehee.hookrouter.spring.publisher.NotificationPublisher;
+import io.github.limehee.hookrouter.spring.listener.NotificationProcessingGateway;
+import io.github.limehee.hookrouter.spring.listener.NotificationProcessingGateway.ProcessingResult;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
@@ -39,7 +41,7 @@ class DeadLetterReprocessorTest {
     private DeadLetterStore store;
 
     @Mock
-    private NotificationPublisher publisher;
+    private NotificationProcessingGateway notificationProcessor;
 
     private static Notification<?> anyNotification() {
         return any();
@@ -47,7 +49,8 @@ class DeadLetterReprocessorTest {
 
     @BeforeEach
     void setUp() {
-        reprocessor = new DeadLetterReprocessor(store, publisher);
+        reprocessor = new DeadLetterReprocessor(store, notificationProcessor);
+        lenient().when(notificationProcessor.process(anyNotification())).thenReturn(ProcessingResult.ok());
     }
 
     private StoredDeadLetter createStoredDeadLetter(String id, int retryCount, int maxRetries) {
@@ -101,7 +104,7 @@ class DeadLetterReprocessorTest {
             assertThat(result.isSuccess()).isTrue();
 
             verify(store).updateStatus(id, DeadLetterStatus.PROCESSING);
-            verify(publisher).publish(anyNotification());
+            verify(notificationProcessor).process(anyNotification());
             verify(store).updateStatus(id, DeadLetterStatus.RESOLVED);
         }
 
@@ -119,7 +122,7 @@ class DeadLetterReprocessorTest {
             assertThat(result.status()).isEqualTo(ReprocessStatus.NOT_FOUND);
             assertThat(result.errorMessage()).isEqualTo("Dead letter not found");
 
-            verify(publisher, never()).publish(anyNotification());
+            verify(notificationProcessor, never()).process(anyNotification());
         }
 
         @Test
@@ -140,7 +143,7 @@ class DeadLetterReprocessorTest {
             assertThat(result.errorMessage()).isEqualTo("Max retries exceeded");
 
             verify(store).updateStatus(id, DeadLetterStatus.ABANDONED);
-            verify(publisher, never()).publish(anyNotification());
+            verify(notificationProcessor, never()).process(anyNotification());
         }
 
         @Test
@@ -151,7 +154,7 @@ class DeadLetterReprocessorTest {
 
             given(store.findById(id)).willReturn(Optional.of(storedDeadLetter));
             given(store.updateStatus(eq(id), any(DeadLetterStatus.class))).willReturn(true);
-            willThrow(new RuntimeException("Connection failed")).given(publisher).publish(anyNotification());
+            willThrow(new RuntimeException("Connection failed")).given(notificationProcessor).process(anyNotification());
 
             // When
             ReprocessResult result = reprocessor.reprocessById(id);
@@ -163,6 +166,27 @@ class DeadLetterReprocessorTest {
 
             verify(store).updateStatus(id, DeadLetterStatus.PROCESSING);
             verify(store).updateRetryInfo(eq(id), eq(1), any(Instant.class), eq("Connection failed"));
+        }
+
+        @Test
+        void shouldReturnFailedWhenNotificationProcessorReportsFailure() {
+            // Given
+            String id = "test-id";
+            StoredDeadLetter storedDeadLetter = createStoredDeadLetter(id, 0, 3);
+
+            given(store.findById(id)).willReturn(Optional.of(storedDeadLetter));
+            given(store.updateStatus(eq(id), any(DeadLetterStatus.class))).willReturn(true);
+            given(notificationProcessor.process(anyNotification()))
+                .willReturn(ProcessingResult.failed("delivery failed"));
+
+            // When
+            ReprocessResult result = reprocessor.reprocessById(id);
+
+            // Then
+            assertThat(result.id()).isEqualTo(id);
+            assertThat(result.status()).isEqualTo(ReprocessStatus.FAILED);
+            assertThat(result.errorMessage()).isEqualTo("delivery failed");
+            verify(store).updateRetryInfo(eq(id), eq(1), any(Instant.class), eq("delivery failed"));
         }
     }
 
@@ -199,8 +223,8 @@ class DeadLetterReprocessorTest {
             given(store.updateRetryInfo(anyString(), anyInt(), any(Instant.class), anyString())).willReturn(true);
 
             willThrow(new RuntimeException("Connection failed"))
-                .willDoNothing()
-                .given(publisher).publish(anyNotification());
+                .willReturn(ProcessingResult.ok())
+                .given(notificationProcessor).process(anyNotification());
 
             // When
             ReprocessSummary summary = reprocessor.reprocessPending(10);
@@ -352,7 +376,7 @@ class DeadLetterReprocessorTest {
         void shouldReturnNotNullCustomReprocessor() {
             // When
             DeadLetterReprocessor customReprocessor = new DeadLetterReprocessor(
-                store, publisher, 30_000L, 1_800_000L, 1.5
+                store, notificationProcessor, 30_000L, 1_800_000L, 1.5
             );
 
             // Then
@@ -368,7 +392,7 @@ class DeadLetterReprocessorTest {
 
             long maxDelayMs = 3_600_000L;
             DeadLetterReprocessor customReprocessor = new DeadLetterReprocessor(
-                store, publisher, 60_000L, maxDelayMs, 2.0
+                store, notificationProcessor, 60_000L, maxDelayMs, 2.0
             );
 
             String id = "overflow-test-id";
@@ -377,7 +401,7 @@ class DeadLetterReprocessorTest {
             given(store.findById(id)).willReturn(Optional.of(storedDeadLetter));
             given(store.updateStatus(eq(id), any(DeadLetterStatus.class))).willReturn(true);
             given(store.updateRetryInfo(anyString(), anyInt(), any(Instant.class), anyString())).willReturn(true);
-            willThrow(new RuntimeException("Connection failed")).given(publisher).publish(anyNotification());
+            willThrow(new RuntimeException("Connection failed")).given(notificationProcessor).process(anyNotification());
 
             Instant before = Instant.now();
 
@@ -449,7 +473,7 @@ class DeadLetterReprocessorTest {
                 .willReturn(Optional.of(processingState));
             given(store.updateStatus(eq(id), any(DeadLetterStatus.class))).willReturn(true);
             given(store.updateRetryInfo(anyString(), anyInt(), any(Instant.class), anyString())).willReturn(true);
-            willThrow(new RuntimeException("Connection failed")).given(publisher).publish(anyNotification());
+            willThrow(new RuntimeException("Connection failed")).given(notificationProcessor).process(anyNotification());
 
             // When
             ReprocessResult result = reprocessor.reprocessById(id);
@@ -484,7 +508,7 @@ class DeadLetterReprocessorTest {
                 .willReturn(Optional.of(processingState));
             given(store.updateStatus(anyString(), any(DeadLetterStatus.class))).willReturn(true);
 
-            willThrow(new OutOfMemoryError("Heap space")).given(publisher).publish(anyNotification());
+            willThrow(new OutOfMemoryError("Heap space")).given(notificationProcessor).process(anyNotification());
 
             // When & Then
             try {
@@ -515,7 +539,7 @@ class DeadLetterReprocessorTest {
 
             verify(store).updateStatus(id, DeadLetterStatus.PROCESSING);
             verify(store).updateStatus(id, DeadLetterStatus.RESOLVED);
-            verify(publisher).publish(anyNotification());
+            verify(notificationProcessor).process(anyNotification());
 
         }
 
@@ -542,7 +566,7 @@ class DeadLetterReprocessorTest {
             given(store.updateRetryInfo(anyString(), anyInt(), any(Instant.class), anyString())).willReturn(true);
 
             willThrow(new RuntimeException(new InterruptedException("Thread interrupted")))
-                .given(publisher).publish(anyNotification());
+                .given(notificationProcessor).process(anyNotification());
 
             // When
             ReprocessResult result = reprocessor.reprocessById(id);
