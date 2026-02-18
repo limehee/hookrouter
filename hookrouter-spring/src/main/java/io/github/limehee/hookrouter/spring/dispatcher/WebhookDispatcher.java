@@ -30,7 +30,6 @@ import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
 import io.github.resilience4j.ratelimiter.RateLimiter;
 import io.github.resilience4j.ratelimiter.RateLimiterConfig;
 import io.github.resilience4j.ratelimiter.RateLimiterRegistry;
-import io.github.resilience4j.ratelimiter.RequestNotPermitted;
 import io.github.resilience4j.retry.Retry;
 import io.github.resilience4j.retry.RetryRegistry;
 import io.github.resilience4j.timelimiter.TimeLimiter;
@@ -191,12 +190,7 @@ public class WebhookDispatcher {
             .build();
 
         RateLimiter rateLimiter = rateLimiterRegistry.rateLimiter(resilienceKey, config);
-
-        try {
-            return rateLimiter.acquirePermission();
-        } catch (RequestNotPermitted e) {
-            return false;
-        }
+        return rateLimiter.acquirePermission();
     }
 
     @Nullable
