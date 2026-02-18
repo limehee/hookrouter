@@ -103,6 +103,18 @@ class InMemoryDeadLetterStoreTest {
             assertThat(smallStore.size()).isEqualTo(2);
             assertThat(smallStore.findById(stored1.id())).isEmpty();
         }
+
+        @Test
+        void shouldEvictOldestPendingEntryWhenStoreIsFull() {
+            InMemoryDeadLetterStore smallStore = new InMemoryDeadLetterStore(2, 3);
+            StoredDeadLetter oldest = smallStore.save(createDeadLetter("slack", "channel-1"));
+            smallStore.save(createDeadLetter("slack", "channel-2"));
+
+            smallStore.save(createDeadLetter("slack", "channel-3"));
+
+            assertThat(smallStore.size()).isEqualTo(2);
+            assertThat(smallStore.findById(oldest.id())).isEmpty();
+        }
     }
 
     @Nested

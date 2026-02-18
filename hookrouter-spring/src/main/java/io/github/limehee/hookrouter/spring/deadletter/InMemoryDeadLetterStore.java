@@ -33,8 +33,7 @@ public class InMemoryDeadLetterStore implements DeadLetterStore {
     @Override
     public synchronized StoredDeadLetter save(DeadLetter deadLetter) {
         if (store.size() >= maxSize) {
-
-            evictOldestResolved();
+            ensureCapacity();
         }
         String id = UUID.randomUUID().toString();
         Instant now = Instant.now();
@@ -122,15 +121,16 @@ public class InMemoryDeadLetterStore implements DeadLetterStore {
         store.clear();
     }
 
-    private void evictOldestResolved() {
-
+    private void ensureCapacity() {
         boolean evicted = evictOldestByStatus(DeadLetterStatus.RESOLVED);
-
         if (!evicted) {
             evicted = evictOldestByStatus(DeadLetterStatus.ABANDONED);
         }
-
         if (!evicted) {
+            evicted = evictOldestAny();
+        }
+        if (!evicted) {
+            throw new IllegalStateException("Failed to evict dead letter entry while store is full");
         }
     }
 
@@ -139,6 +139,11 @@ public class InMemoryDeadLetterStore implements DeadLetterStore {
         List<Map.Entry<String, StoredDeadLetter>> candidates = store.entrySet().stream()
             .filter(e -> e.getValue().status() == status).toList();
         return candidates.stream().min(Comparator.comparing(e -> e.getValue().createdAt())).map(Map.Entry::getKey)
+            .map(key -> store.remove(key) != null).orElse(false);
+    }
+
+    private boolean evictOldestAny() {
+        return store.entrySet().stream().min(Comparator.comparing(e -> e.getValue().createdAt())).map(Map.Entry::getKey)
             .map(key -> store.remove(key) != null).orElse(false);
     }
 }
