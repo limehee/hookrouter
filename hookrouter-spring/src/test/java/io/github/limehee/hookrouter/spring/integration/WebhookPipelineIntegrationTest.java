@@ -240,7 +240,7 @@ class WebhookPipelineIntegrationTest {
 
                 await().atMost(Duration.ofSeconds(5)).untilAsserted(() -> {
 
-                    assertThat(attemptCount.get()).isEqualTo(4);
+                    assertThat(attemptCount.get()).isEqualTo(3);
 
                     assertThat(deadLetters).hasSize(1);
                     DeadLetter deadLetter = deadLetters.get(0);

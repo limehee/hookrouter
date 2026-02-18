@@ -74,6 +74,8 @@ Behavior:
 
 ## 3. Global Resilience Config
 
+`hookrouter.retry.max-attempts` means total send attempts including the first attempt.
+
 ```yaml
 hookrouter:
   retry:

@@ -23,6 +23,10 @@ Routing priority:
 - `hookrouter.rate-limiter.*`
 - `hookrouter.bulkhead.*`
 
+Retry note:
+
+- `hookrouter.retry.max-attempts` is the total number of send attempts including the first attempt.
+
 ## 3. Runtime/Operations Keys
 
 - `hookrouter.dead-letter.*`

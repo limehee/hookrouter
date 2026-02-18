@@ -54,7 +54,7 @@ class WebhookRetryFactoryTest {
             Retry retry = registry.retry("test");
             RetryConfig config = retry.getRetryConfig();
 
-            assertThat(config.getMaxAttempts()).isEqualTo(6);
+            assertThat(config.getMaxAttempts()).isEqualTo(5);
         }
     }
 
@@ -72,7 +72,7 @@ class WebhookRetryFactoryTest {
 
             // Then
 
-            assertThat(config.getMaxAttempts()).isEqualTo(2);
+            assertThat(config.getMaxAttempts()).isEqualTo(1);
         }
 
         @Test
@@ -91,7 +91,7 @@ class WebhookRetryFactoryTest {
                 throw new WebhookSendRetryableException("retryable error");
             })).isInstanceOf(WebhookSendRetryableException.class);
 
-            assertThat(counter.get()).isEqualTo(4);
+            assertThat(counter.get()).isEqualTo(3);
         }
 
         @Test

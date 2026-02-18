@@ -26,10 +26,11 @@ public final class WebhookRetryFactory {
         double jitterFactor = clampDouble(properties.getJitterFactor(), 0.0, 1.0);
         IntervalFunction intervalFunction = IntervalFunction.ofExponentialRandomBackoff(initialDelay, multiplier,
             jitterFactor, maxDelay);
-        return
-            // Exponential backoff + Jitter
-            RetryConfig.custom().maxAttempts(1 + maxAttempts).intervalFunction(intervalFunction)
-                .retryOnException(throwable -> throwable instanceof WebhookSendRetryableException).build();
+        return RetryConfig.custom()
+            .maxAttempts(maxAttempts)
+            .intervalFunction(intervalFunction)
+            .retryOnException(throwable -> throwable instanceof WebhookSendRetryableException)
+            .build();
     }
 
     public static final class WebhookSendRetryableException extends RuntimeException {

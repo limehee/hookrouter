@@ -107,7 +107,7 @@ class WebhookEndToEndFlowTest {
             publisher.publish(notification("needs-reprocess"));
 
             await().atMost(Duration.ofSeconds(5)).untilAsserted(() -> {
-                assertThat(sender.sendCount()).isEqualTo(2);
+                assertThat(sender.sendCount()).isEqualTo(1);
                 assertThat(store.countByStatus(DeadLetterStatus.PENDING)).isEqualTo(1);
             });
 

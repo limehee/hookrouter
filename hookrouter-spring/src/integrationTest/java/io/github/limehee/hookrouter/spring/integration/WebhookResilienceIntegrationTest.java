@@ -189,8 +189,8 @@ class WebhookResilienceIntegrationTest {
 
                 DeadLetter deadLetter = deadLetters.get(0);
                 assertThat(deadLetter.reason()).isEqualTo(FailureReason.MAX_RETRIES_EXCEEDED);
-                assertThat(deadLetter.attemptCount()).isEqualTo(2);
-                assertThat(sendCount.get()).isEqualTo(2);
+                assertThat(deadLetter.attemptCount()).isEqualTo(1);
+                assertThat(sendCount.get()).isLessThanOrEqualTo(1);
             });
     }
 

@@ -30,7 +30,7 @@
       "name": "hookrouter.retry.max-attempts",
       "type": "java.lang.Integer",
       "defaultValue": 3,
-      "description": "Maximum retry attempts. Must be greater than 0."
+      "description": "Maximum delivery attempts including the initial send. Must be greater than 0."
     },
     {
       "name": "hookrouter.retry.initial-delay",
