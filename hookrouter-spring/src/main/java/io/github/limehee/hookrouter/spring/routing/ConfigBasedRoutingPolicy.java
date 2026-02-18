@@ -9,6 +9,7 @@ import java.util.List;
 
 public class ConfigBasedRoutingPolicy implements RoutingPolicy {
 
+    private static final System.Logger LOGGER = System.getLogger(ConfigBasedRoutingPolicy.class.getName());
     private final WebhookConfigProperties properties;
 
     public ConfigBasedRoutingPolicy(final WebhookConfigProperties properties) {
@@ -51,7 +52,8 @@ public class ConfigBasedRoutingPolicy implements RoutingPolicy {
             try {
                 webhookUrl = properties.getWebhookUrl(platform, webhookKey);
             } catch (Exception e) {
-
+                LOGGER.log(System.Logger.Level.WARNING,
+                    "Failed to resolve webhook URL for platform=" + platform + ", webhookKey=" + webhookKey, e);
                 continue;
             }
             if (webhookUrl == null) {

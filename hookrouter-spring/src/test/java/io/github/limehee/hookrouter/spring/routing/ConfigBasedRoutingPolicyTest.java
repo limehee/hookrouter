@@ -190,6 +190,25 @@ class ConfigBasedRoutingPolicyTest {
             // Then
             assertThat(targets).isEmpty();
         }
+
+        @Test
+        void shouldBeEmptyTargetsWhenWebhookUrlResolutionThrowsException() {
+            PlatformMapping mapping = createMapping("slack", "error-channel");
+
+            WebhookConfigProperties exceptionalProperties = new WebhookConfigProperties() {
+                @Override
+                public String getWebhookUrl(String platform, String webhookKey) {
+                    throw new IllegalStateException("resolution failed");
+                }
+            };
+            exceptionalProperties.setTypeMappings(Map.of("demo.test", List.of(mapping)));
+
+            ConfigBasedRoutingPolicy exceptionalPolicy = new ConfigBasedRoutingPolicy(exceptionalProperties);
+
+            List<RoutingTarget> targets = exceptionalPolicy.resolve("demo.test", "general");
+
+            assertThat(targets).isEmpty();
+        }
     }
 
     @Nested
