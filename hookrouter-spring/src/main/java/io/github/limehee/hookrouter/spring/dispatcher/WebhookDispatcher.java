@@ -41,6 +41,7 @@ import java.time.Instant;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -56,6 +57,7 @@ public class WebhookDispatcher {
     private final TimeLimiterRegistry timeLimiterRegistry;
     private final RateLimiterRegistry rateLimiterRegistry;
     private final BulkheadRegistry bulkheadRegistry;
+    private final Executor webhookTaskExecutor;
     private final WebhookMetrics metrics;
     private final DeadLetterProcessor deadLetterProcessor;
     private final ApplicationEventPublisher eventPublisher;
@@ -67,6 +69,7 @@ public class WebhookDispatcher {
         TimeLimiterRegistry timeLimiterRegistry,
         RateLimiterRegistry rateLimiterRegistry,
         BulkheadRegistry bulkheadRegistry,
+        Executor webhookTaskExecutor,
         WebhookMetrics metrics,
         DeadLetterProcessor deadLetterProcessor,
         ApplicationEventPublisher eventPublisher
@@ -77,6 +80,7 @@ public class WebhookDispatcher {
         this.timeLimiterRegistry = timeLimiterRegistry;
         this.rateLimiterRegistry = rateLimiterRegistry;
         this.bulkheadRegistry = bulkheadRegistry;
+        this.webhookTaskExecutor = webhookTaskExecutor;
         this.metrics = metrics;
         this.deadLetterProcessor = deadLetterProcessor;
         this.eventPublisher = eventPublisher;
@@ -399,7 +403,7 @@ public class WebhookDispatcher {
 
         try {
             return timeLimiter.executeFutureSupplier(
-                () -> CompletableFuture.supplyAsync(() -> sender.send(webhookUrl, payload))
+                () -> CompletableFuture.supplyAsync(() -> sender.send(webhookUrl, payload), webhookTaskExecutor)
             );
         } catch (TimeoutException e) {
             return SendResult.failure(

@@ -104,6 +104,7 @@ class WebhookDispatcherTest {
             timeLimiterRegistry,
             rateLimiterRegistry,
             bulkheadRegistry,
+            Runnable::run,
             metrics,
             deadLetterProcessor,
             eventPublisher

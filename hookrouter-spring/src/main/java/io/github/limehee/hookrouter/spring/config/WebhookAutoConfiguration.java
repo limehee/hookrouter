@@ -50,6 +50,7 @@ import java.time.Duration;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.Executor;
 import java.util.stream.Collectors;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
@@ -63,6 +64,7 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
+import org.springframework.beans.factory.annotation.Qualifier;
 
 @AutoConfiguration
 @ConditionalOnProperty(prefix = "hookrouter.default-mappings[0]", name = "platform")
@@ -224,11 +226,12 @@ public class WebhookAutoConfiguration {
     public WebhookDispatcher webhookDispatcher(WebhookConfigResolver configResolver,
         CircuitBreakerRegistry circuitBreakerRegistry, RetryRegistry retryRegistry,
         TimeLimiterRegistry timeLimiterRegistry, RateLimiterRegistry rateLimiterRegistry,
-        BulkheadRegistry bulkheadRegistry, ObjectProvider<WebhookMetrics> metricsProvider,
+        BulkheadRegistry bulkheadRegistry, @Qualifier("webhookTaskExecutor") Executor webhookTaskExecutor,
+        ObjectProvider<WebhookMetrics> metricsProvider,
         DeadLetterProcessor deadLetterProcessor, ApplicationEventPublisher eventPublisher) {
         WebhookMetrics metrics = metricsProvider.getIfAvailable(() -> NoOpWebhookMetrics.INSTANCE);
         return new WebhookDispatcher(configResolver, circuitBreakerRegistry, retryRegistry, timeLimiterRegistry,
-            rateLimiterRegistry, bulkheadRegistry, metrics, deadLetterProcessor, eventPublisher);
+            rateLimiterRegistry, bulkheadRegistry, webhookTaskExecutor, metrics, deadLetterProcessor, eventPublisher);
     }
 
     @Configuration(proxyBeanMethods = false)
