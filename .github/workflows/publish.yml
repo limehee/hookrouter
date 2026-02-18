@@ -122,3 +122,39 @@ jobs:
 
           echo "Timed out while waiting for Central deployment to become PUBLISHED."
           exit 1
+
+      - name: Verify Artifacts Reachable On repo1.maven.org
+        shell: bash
+        run: |
+          CURRENT_TAG="${GITHUB_REF_NAME}"
+          VERSION="${CURRENT_TAG#v}"
+          GROUP=$(grep '^group=' gradle.properties | cut -d= -f2)
+          if [ -z "${GROUP}" ] || [ -z "${VERSION}" ]; then
+            echo "Unable to resolve group/version for repo1 verification."
+            exit 1
+          fi
+
+          GROUP_PATH="${GROUP//./\/}"
+          ARTIFACTS=("hookrouter-core" "hookrouter-spring")
+
+          for ARTIFACT in "${ARTIFACTS[@]}"; do
+            POM_URL="https://repo1.maven.org/maven2/${GROUP_PATH}/${ARTIFACT}/${VERSION}/${ARTIFACT}-${VERSION}.pom"
+            echo "Verifying ${POM_URL}"
+
+            FOUND=false
+            for i in $(seq 1 40); do
+              STATUS=$(curl -s -o /dev/null -w '%{http_code}' "${POM_URL}")
+              if [ "${STATUS}" = "200" ]; then
+                echo "Artifact is reachable: ${ARTIFACT}:${VERSION}"
+                FOUND=true
+                break
+              fi
+              echo "Waiting for repo1 propagation (${ARTIFACT}, ${i}/40, status=${STATUS})"
+              sleep 30
+            done
+
+            if [ "${FOUND}" != "true" ]; then
+              echo "Timed out waiting for artifact on repo1: ${ARTIFACT}:${VERSION}"
+              exit 1
+            fi
+          done
