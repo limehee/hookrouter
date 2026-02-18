@@ -10,7 +10,9 @@ hookrouter:
   bulkhead:
     enabled: false
   dead-letter:
-    enabled: false
+    enabled: true
+    max-retries: 3
+    scheduler-enabled: false
   platforms:
     slack:
       endpoints:
@@ -18,6 +20,8 @@ hookrouter:
           url: "https://example.test/slack/critical"
         general:
           url: "https://example.test/slack/general"
+        dlq:
+          url: "https://example.test/slack/dlq-fail"
     discord:
       endpoints:
         ops:
@@ -26,6 +30,9 @@ hookrouter:
     order.failed:
       - platform: "slack"
         webhook: "critical"
+    delivery.sample.failure:
+      - platform: "slack"
+        webhook: "dlq"
   category-mappings:
     ops:
       - platform: "discord"

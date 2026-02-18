@@ -162,6 +162,31 @@ hookrouter:
     scheduler-batch-size: 50
 ```
 
+To persist dead letters and enable replay, register a `DeadLetterStore` bean:
+
+```java
+import io.github.limehee.hookrouter.spring.config.WebhookConfigProperties;
+import io.github.limehee.hookrouter.spring.deadletter.DeadLetterStore;
+import io.github.limehee.hookrouter.spring.deadletter.InMemoryDeadLetterStore;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+
+@Configuration
+public class DeadLetterConfig {
+
+    @Bean
+    public DeadLetterStore deadLetterStore(WebhookConfigProperties properties) {
+        return new InMemoryDeadLetterStore(
+            InMemoryDeadLetterStore.DEFAULT_MAX_SIZE,
+            Math.max(properties.getDeadLetter().getMaxRetries(), 1)
+        );
+    }
+}
+```
+
+Without a `DeadLetterStore` bean, `hookrouter` falls back to logging dead-letter events only.
+For full usage patterns (manual replay, scheduler behavior, status lifecycle), see [`dead-letter-guide.md`](dead-letter-guide.md).
+
 ## 6. Recommended Production Baseline
 
 ```yaml

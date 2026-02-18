@@ -6,6 +6,8 @@ import io.github.limehee.hookrouter.core.domain.NotificationTypeDefinition;
 import io.github.limehee.hookrouter.core.domain.WebhookFormatter;
 import io.github.limehee.hookrouter.samples.springmapping.context.OrderFailedContext;
 import io.github.limehee.hookrouter.samples.springmapping.sender.RecordingWebhookSender;
+import io.github.limehee.hookrouter.spring.config.WebhookConfigProperties;
+import io.github.limehee.hookrouter.spring.deadletter.InMemoryDeadLetterStore;
 import java.util.Map;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -40,6 +42,16 @@ public class MappingSampleConfig {
             .title("User Signup Completed")
             .defaultMessage("A user completed signup")
             .category("growth")
+            .build();
+    }
+
+    @Bean
+    NotificationTypeDefinition deliverySampleFailureTypeDefinition() {
+        return NotificationTypeDefinition.builder()
+            .typeId("delivery.sample.failure")
+            .title("Delivery Sample Failure")
+            .defaultMessage("Delivery failure example for dead-letter flow")
+            .category("ops")
             .build();
     }
 
@@ -121,11 +133,19 @@ public class MappingSampleConfig {
 
     @Bean
     RecordingWebhookSender slackWebhookSender() {
-        return new RecordingWebhookSender("slack");
+        RecordingWebhookSender sender = new RecordingWebhookSender("slack");
+        sender.configureFailures("https://example.test/slack/dlq-fail", 1, false);
+        return sender;
     }
 
     @Bean
     RecordingWebhookSender discordWebhookSender() {
         return new RecordingWebhookSender("discord");
+    }
+
+    @Bean
+    InMemoryDeadLetterStore deadLetterStore(WebhookConfigProperties properties) {
+        int maxRetries = Math.max(properties.getDeadLetter().getMaxRetries(), 1);
+        return new InMemoryDeadLetterStore(InMemoryDeadLetterStore.DEFAULT_MAX_SIZE, maxRetries);
     }
 }

@@ -4,6 +4,7 @@
 - [Module Guides](module-guides.md)
 - [Architecture](architecture.md)
 - [Spring Boot Guide](spring-boot-guide.md)
+- [Dead Letter Guide](dead-letter-guide.md)
 - [Pure Java Guide](pure-java-guide.md)
 - [Configuration Reference](configuration-reference.md)
 - [Samples](samples.md)

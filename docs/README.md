@@ -6,8 +6,9 @@ Recommended reading order:
 2. [Module Guides](module-guides.md)
 3. [Architecture](architecture.md)
 4. [Spring Boot Guide](spring-boot-guide.md)
-5. [Configuration Reference](configuration-reference.md)
-6. [Samples](samples.md)
+5. [Dead Letter Guide](dead-letter-guide.md)
+6. [Configuration Reference](configuration-reference.md)
+7. [Samples](samples.md)
 
 Before release, also review:
 

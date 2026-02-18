@@ -133,8 +133,16 @@ HOOKROUTER_BULKHEAD_MAX_CONCURRENT_CALLS=50
 - Put highest-critical routes into `type-mappings`.
 - Use per-webhook override for hot/critical endpoints only.
 - Use `dead-letter.enabled=true` in production.
+- Register a `DeadLetterStore` bean if you need persistence/replay (otherwise dead letters are log-only fallback).
 
-## 7. IDE Auto-completion and Hints
+## 7. Dead-letter activation notes
+
+- `dead-letter.enabled=true` does not automatically persist failed events by itself.
+- Persistence and replay are active when a `DeadLetterStore` bean is present.
+- Scheduled replay additionally requires `dead-letter.scheduler-enabled=true`.
+- For end-to-end setup, see [`dead-letter-guide.md`](dead-letter-guide.md).
+
+## 8. IDE Auto-completion and Hints
 
 `hookrouter-spring` provides configuration metadata through:
 

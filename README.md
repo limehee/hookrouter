@@ -142,6 +142,7 @@ flowchart LR
 - Index: [`docs/index.md`](docs/index.md)
 - Getting started: [`docs/getting-started.md`](docs/getting-started.md)
 - Spring guide: [`docs/spring-boot-guide.md`](docs/spring-boot-guide.md)
+- Dead letter guide: [`docs/dead-letter-guide.md`](docs/dead-letter-guide.md)
 - Pure Java guide: [`docs/pure-java-guide.md`](docs/pure-java-guide.md)
 - Configuration reference: [`docs/configuration-reference.md`](docs/configuration-reference.md)
 - Testing/quality: [`docs/testing-and-quality.md`](docs/testing-and-quality.md)
