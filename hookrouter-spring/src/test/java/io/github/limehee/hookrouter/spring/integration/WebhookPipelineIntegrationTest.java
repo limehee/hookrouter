@@ -13,6 +13,7 @@ import io.github.limehee.hookrouter.spring.config.WebhookAutoConfiguration;
 import io.github.limehee.hookrouter.spring.deadletter.DeadLetterHandler;
 import io.github.limehee.hookrouter.spring.deadletter.DeadLetterHandler.DeadLetter;
 import io.github.limehee.hookrouter.spring.publisher.NotificationPublisher;
+import io.github.limehee.hookrouter.spring.resilience.ResilienceResourceKey;
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
 import java.time.Duration;
@@ -317,7 +318,9 @@ class WebhookPipelineIntegrationTest {
             contextRunner.run(context -> {
                 NotificationPublisher publisher = context.getBean(NotificationPublisher.class);
                 CircuitBreakerRegistry registry = context.getBean(CircuitBreakerRegistry.class);
-                CircuitBreaker circuitBreaker = registry.circuitBreaker("test-channel");
+                CircuitBreaker circuitBreaker = registry.circuitBreaker(
+                    ResilienceResourceKey.of("slack", "test-channel")
+                );
                 circuitBreaker.reset();
 
                 for (int i = 0; i < 5; i++) {
@@ -355,7 +358,9 @@ class WebhookPipelineIntegrationTest {
             // When & Then
             contextRunner.run(context -> {
                 CircuitBreakerRegistry registry = context.getBean(CircuitBreakerRegistry.class);
-                CircuitBreaker circuitBreaker = registry.circuitBreaker("test-channel");
+                CircuitBreaker circuitBreaker = registry.circuitBreaker(
+                    ResilienceResourceKey.of("slack", "test-channel")
+                );
                 circuitBreaker.reset();
                 circuitBreaker.transitionToOpenState();
 
@@ -397,7 +402,9 @@ class WebhookPipelineIntegrationTest {
             // When & Then
             contextRunner.run(context -> {
                 CircuitBreakerRegistry registry = context.getBean(CircuitBreakerRegistry.class);
-                CircuitBreaker circuitBreaker = registry.circuitBreaker("test-channel");
+                CircuitBreaker circuitBreaker = registry.circuitBreaker(
+                    ResilienceResourceKey.of("slack", "test-channel")
+                );
                 circuitBreaker.reset();
 
                 NotificationPublisher publisher = context.getBean(NotificationPublisher.class);

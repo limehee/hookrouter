@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.verify;
 
 import io.github.limehee.hookrouter.spring.metrics.WebhookMetrics;
+import io.github.limehee.hookrouter.spring.resilience.ResilienceResourceKey;
 import io.github.resilience4j.ratelimiter.RateLimiter;
 import io.github.resilience4j.ratelimiter.RateLimiterConfig;
 import io.github.resilience4j.ratelimiter.RateLimiterRegistry;
@@ -47,14 +48,15 @@ class RateLimitEventListenerTest {
                 "demo.test.event", 30000L, "Too Many Requests"
             );
 
-            RateLimiter initialLimiter = rateLimiterRegistry.rateLimiter(webhookKey);
+            String resilienceKey = ResilienceResourceKey.of("slack", webhookKey);
+            RateLimiter initialLimiter = rateLimiterRegistry.rateLimiter(resilienceKey);
             int initialPermissions = initialLimiter.getMetrics().getAvailablePermissions();
 
             // When
             listener.onRateLimitDetected(event);
 
             // Then
-            RateLimiter adjustedLimiter = rateLimiterRegistry.rateLimiter(webhookKey);
+            RateLimiter adjustedLimiter = rateLimiterRegistry.rateLimiter(resilienceKey);
 
             assertThat(adjustedLimiter.getMetrics().getAvailablePermissions())
                 .isLessThanOrEqualTo(1);
@@ -76,7 +78,7 @@ class RateLimitEventListenerTest {
             listener.onRateLimitDetected(event);
 
             // Then
-            RateLimiter adjustedLimiter = rateLimiterRegistry.rateLimiter(webhookKey);
+            RateLimiter adjustedLimiter = rateLimiterRegistry.rateLimiter(ResilienceResourceKey.of("slack", webhookKey));
 
             assertThat(adjustedLimiter.getMetrics().getAvailablePermissions())
                 .isLessThanOrEqualTo(1);
@@ -96,14 +98,14 @@ class RateLimitEventListenerTest {
                 "demo.test.event", 10000L, "Too Many Requests"
             );
 
-            RateLimiter limiter2Before = rateLimiterRegistry.rateLimiter(webhookKey2);
+            RateLimiter limiter2Before = rateLimiterRegistry.rateLimiter(ResilienceResourceKey.of("slack", webhookKey2));
             int permissionsBefore = limiter2Before.getMetrics().getAvailablePermissions();
 
             listener.onRateLimitDetected(event1);
 
             // Then
-            RateLimiter limiter1 = rateLimiterRegistry.rateLimiter(webhookKey1);
-            RateLimiter limiter2After = rateLimiterRegistry.rateLimiter(webhookKey2);
+            RateLimiter limiter1 = rateLimiterRegistry.rateLimiter(ResilienceResourceKey.of("slack", webhookKey1));
+            RateLimiter limiter2After = rateLimiterRegistry.rateLimiter(ResilienceResourceKey.of("slack", webhookKey2));
 
             assertThat(limiter1.getMetrics().getAvailablePermissions())
                 .isLessThanOrEqualTo(1);

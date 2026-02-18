@@ -14,6 +14,7 @@ import io.github.limehee.hookrouter.spring.deadletter.DeadLetterStore;
 import io.github.limehee.hookrouter.spring.deadletter.DeadLetterStore.DeadLetterStatus;
 import io.github.limehee.hookrouter.spring.deadletter.InMemoryDeadLetterStore;
 import io.github.limehee.hookrouter.spring.publisher.NotificationPublisher;
+import io.github.limehee.hookrouter.spring.resilience.ResilienceResourceKey;
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
 import io.micrometer.core.instrument.Counter;
@@ -143,7 +144,9 @@ class WebhookEndToEndFlowTest {
                 assertThat(sender.sendCount()).isEqualTo(2);
             });
 
-            CircuitBreaker circuitBreaker = circuitBreakerRegistry.circuitBreaker("alerts");
+            CircuitBreaker circuitBreaker = circuitBreakerRegistry.circuitBreaker(
+                ResilienceResourceKey.of("slack", "alerts")
+            );
             await().atMost(Duration.ofSeconds(5)).untilAsserted(() -> {
                 assertThat(circuitBreaker.getState()).isEqualTo(CircuitBreaker.State.OPEN);
             });

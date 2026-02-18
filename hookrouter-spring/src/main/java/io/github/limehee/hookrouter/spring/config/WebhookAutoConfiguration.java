@@ -26,6 +26,7 @@ import io.github.limehee.hookrouter.spring.metrics.MicrometerWebhookMetrics;
 import io.github.limehee.hookrouter.spring.metrics.NoOpWebhookMetrics;
 import io.github.limehee.hookrouter.spring.metrics.WebhookMetrics;
 import io.github.limehee.hookrouter.spring.publisher.NotificationPublisher;
+import io.github.limehee.hookrouter.spring.resilience.ResilienceResourceKey;
 import io.github.limehee.hookrouter.spring.resilience.WebhookRetryFactory;
 import io.github.limehee.hookrouter.spring.resilience.event.CircuitBreakerEventListener;
 import io.github.limehee.hookrouter.spring.resilience.event.RateLimitEventListener;
@@ -264,8 +265,9 @@ public class WebhookAutoConfiguration {
         public HealthIndicator webhookHealthIndicator(CircuitBreakerRegistry circuitBreakerRegistry,
             WebhookConfigProperties properties, Optional<DeadLetterStore> deadLetterStore) {
 
-            Set<String> webhookKeys = properties.getPlatforms().values().stream()
-                .flatMap(config -> config.getEndpoints().keySet().stream()).collect(Collectors.toSet());
+            Set<String> webhookKeys = properties.getPlatforms().entrySet().stream().flatMap(entry -> entry.getValue()
+                .getEndpoints().keySet().stream().map(webhookKey -> ResilienceResourceKey.of(entry.getKey(), webhookKey)))
+                .collect(Collectors.toSet());
             return new WebhookHealthIndicator(circuitBreakerRegistry, webhookKeys, deadLetterStore.orElse(null));
         }
     }

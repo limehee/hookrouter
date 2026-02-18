@@ -22,6 +22,7 @@ import io.github.limehee.hookrouter.spring.config.WebhookConfigProperties.Timeou
 import io.github.limehee.hookrouter.spring.config.WebhookConfigResolver;
 import io.github.limehee.hookrouter.spring.deadletter.DeadLetterProcessor;
 import io.github.limehee.hookrouter.spring.metrics.WebhookMetrics;
+import io.github.limehee.hookrouter.spring.resilience.ResilienceResourceKey;
 import io.github.limehee.hookrouter.spring.resilience.WebhookRetryFactory;
 import io.github.resilience4j.bulkhead.BulkheadConfig;
 import io.github.resilience4j.bulkhead.BulkheadRegistry;
@@ -216,6 +217,10 @@ class WebhookDispatcherTest {
 
     private RoutingTarget createRoutingTarget(String platform, String webhookKey, String webhookUrl) {
         return new RoutingTarget(platform, webhookKey, webhookUrl);
+    }
+
+    private String resilienceKey(String platform, String webhookKey) {
+        return ResilienceResourceKey.of(platform, webhookKey);
     }
 
     private record TestContext(String data) {
@@ -418,7 +423,7 @@ class WebhookDispatcherTest {
                     "https://hooks.slack.com/test");
                 Map<String, Object> payload = Map.of("text", "Hello");
 
-                var bulkhead = bulkheadRegistry.bulkhead("bulkhead-full-key");
+                var bulkhead = bulkheadRegistry.bulkhead(resilienceKey("slack", "bulkhead-full-key"));
                 bulkhead.tryAcquirePermission();
 
                 // When
@@ -466,7 +471,7 @@ class WebhookDispatcherTest {
                 RoutingTarget target = createRoutingTarget("slack", "slack-key", "https://hooks.slack.com/test");
                 Map<String, Object> payload = Map.of("text", "Hello");
 
-                CircuitBreaker circuitBreaker = circuitBreakerRegistry.circuitBreaker("slack-key");
+                CircuitBreaker circuitBreaker = circuitBreakerRegistry.circuitBreaker(resilienceKey("slack", "slack-key"));
                 circuitBreaker.transitionToOpenState();
 
                 // When

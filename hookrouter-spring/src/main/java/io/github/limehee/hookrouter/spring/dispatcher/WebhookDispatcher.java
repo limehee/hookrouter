@@ -16,6 +16,7 @@ import io.github.limehee.hookrouter.spring.config.WebhookConfigProperties.Timeou
 import io.github.limehee.hookrouter.spring.config.WebhookConfigResolver;
 import io.github.limehee.hookrouter.spring.deadletter.DeadLetterProcessor;
 import io.github.limehee.hookrouter.spring.metrics.WebhookMetrics;
+import io.github.limehee.hookrouter.spring.resilience.ResilienceResourceKey;
 import io.github.limehee.hookrouter.spring.resilience.WebhookRetryFactory;
 import io.github.limehee.hookrouter.spring.resilience.WebhookRetryFactory.WebhookSendRetryableException;
 import io.github.limehee.hookrouter.spring.resilience.event.RateLimitDetectedEvent;
@@ -90,6 +91,7 @@ public class WebhookDispatcher {
         String typeId = notification.getTypeId();
         String platform = target.platform();
         String webhookKey = target.webhookKey();
+        String resilienceKey = ResilienceResourceKey.of(platform, webhookKey);
         Instant startTime = Instant.now();
 
         RateLimiterProperties rateLimiterProps =
@@ -107,13 +109,13 @@ public class WebhookDispatcher {
         boolean bulkheadPermissionAcquired = false;
 
         try {
-            if (!acquireRateLimiterPermission(webhookKey, rateLimiterProps)) {
+            if (!acquireRateLimiterPermission(resilienceKey, rateLimiterProps)) {
                 metrics.recordSendRateLimited(platform, webhookKey, typeId);
                 deadLetterProcessor.processRateLimited(notification, target, payload);
                 return;
             }
 
-            bulkhead = getBulkhead(webhookKey, bulkheadProps);
+            bulkhead = getBulkhead(resilienceKey, bulkheadProps);
             if (bulkhead != null) {
                 if (!bulkhead.tryAcquirePermission()) {
                     metrics.recordSendBulkheadFull(platform, webhookKey, typeId);
@@ -123,7 +125,7 @@ public class WebhookDispatcher {
                 bulkheadPermissionAcquired = true;
             }
 
-            CircuitBreaker circuitBreaker = getCircuitBreaker(webhookKey, circuitBreakerProps);
+            CircuitBreaker circuitBreaker = getCircuitBreaker(resilienceKey, circuitBreakerProps);
             if (circuitBreaker != null && !circuitBreaker.tryAcquirePermission()) {
                 metrics.recordSendSkipped(platform, webhookKey, typeId);
                 return;
@@ -138,7 +140,7 @@ public class WebhookDispatcher {
                 typeId,
                 retryProps,
                 timeoutProps,
-                webhookKey
+                resilienceKey
             );
             SendResult result = resultWithAttempts.result();
             int attemptCount = resultWithAttempts.attemptCount();
@@ -159,6 +161,7 @@ public class WebhookDispatcher {
                 target,
                 payload,
                 e,
+                resilienceKey,
                 webhookKey,
                 platform,
                 typeId,
@@ -172,7 +175,7 @@ public class WebhookDispatcher {
         }
     }
 
-    private boolean acquireRateLimiterPermission(String webhookKey, RateLimiterProperties props) {
+    private boolean acquireRateLimiterPermission(String resilienceKey, RateLimiterProperties props) {
         if (!props.isEnabled()) {
             return true;
         }
@@ -183,7 +186,7 @@ public class WebhookDispatcher {
             .timeoutDuration(Duration.ofMillis(Math.max(props.getTimeoutDuration(), 0L)))
             .build();
 
-        RateLimiter rateLimiter = rateLimiterRegistry.rateLimiter(webhookKey, config);
+        RateLimiter rateLimiter = rateLimiterRegistry.rateLimiter(resilienceKey, config);
 
         try {
             return rateLimiter.acquirePermission();
@@ -193,7 +196,7 @@ public class WebhookDispatcher {
     }
 
     @Nullable
-    private Bulkhead getBulkhead(String webhookKey, BulkheadProperties props) {
+    private Bulkhead getBulkhead(String resilienceKey, BulkheadProperties props) {
         if (!props.isEnabled()) {
             return null;
         }
@@ -203,11 +206,11 @@ public class WebhookDispatcher {
             .maxWaitDuration(Duration.ofMillis(Math.max(props.getMaxWaitDuration(), 0L)))
             .build();
 
-        return bulkheadRegistry.bulkhead(webhookKey, config);
+        return bulkheadRegistry.bulkhead(resilienceKey, config);
     }
 
     @Nullable
-    private CircuitBreaker getCircuitBreaker(String webhookKey, CircuitBreakerProperties props) {
+    private CircuitBreaker getCircuitBreaker(String resilienceKey, CircuitBreakerProperties props) {
         if (!props.isEnabled()) {
             return null;
         }
@@ -226,7 +229,7 @@ public class WebhookDispatcher {
             .permittedNumberOfCallsInHalfOpenState(successThreshold)
             .build();
 
-        return circuitBreakerRegistry.circuitBreaker(webhookKey, config);
+        return circuitBreakerRegistry.circuitBreaker(resilienceKey, config);
     }
 
     private <T> void handleResult(
@@ -280,6 +283,7 @@ public class WebhookDispatcher {
         RoutingTarget target,
         Object payload,
         Exception exception,
+        String resilienceKey,
         String webhookKey,
         String platform,
         String typeId,
@@ -287,7 +291,7 @@ public class WebhookDispatcher {
         CircuitBreakerProperties circuitBreakerProps
     ) {
         if (circuitBreakerProps.isEnabled()) {
-            CircuitBreaker circuitBreaker = circuitBreakerRegistry.circuitBreaker(webhookKey);
+            CircuitBreaker circuitBreaker = circuitBreakerRegistry.circuitBreaker(resilienceKey);
             circuitBreaker.onError(0, TimeUnit.MILLISECONDS, exception);
             if (circuitBreaker.getState() == State.HALF_OPEN) {
                 circuitBreaker.transitionToOpenState();
@@ -328,14 +332,14 @@ public class WebhookDispatcher {
         String typeId,
         RetryProperties retryProps,
         TimeoutProperties timeoutProps,
-        String webhookKey
+        String resilienceKey
     ) {
         if (!retryProps.isEnabled()) {
-            SendResult result = sendWithTimeout(sender, target.webhookUrl(), payload, webhookKey, timeoutProps);
+            SendResult result = sendWithTimeout(sender, target.webhookUrl(), payload, resilienceKey, timeoutProps);
             return new SendResultWithAttempts(result, 1);
         }
 
-        Retry retry = retryRegistry.retry(webhookKey, WebhookRetryFactory.createConfig(retryProps));
+        Retry retry = retryRegistry.retry(resilienceKey, WebhookRetryFactory.createConfig(retryProps));
         AtomicInteger attemptCount = new AtomicInteger(0);
         AtomicReference<SendResult> lastResult = new AtomicReference<>();
 
@@ -349,7 +353,7 @@ public class WebhookDispatcher {
                     sender,
                     target.webhookUrl(),
                     payload,
-                    webhookKey,
+                    resilienceKey,
                     timeoutProps
                 );
                 lastResult.set(sendResult);
@@ -379,7 +383,7 @@ public class WebhookDispatcher {
         WebhookSender sender,
         String webhookUrl,
         Object payload,
-        String webhookKey,
+        String resilienceKey,
         TimeoutProperties timeoutProps
     ) {
         if (!timeoutProps.isEnabled()) {
@@ -391,7 +395,7 @@ public class WebhookDispatcher {
             .timeoutDuration(Duration.ofMillis(durationMillis))
             .cancelRunningFuture(true)
             .build();
-        TimeLimiter timeLimiter = timeLimiterRegistry.timeLimiter(webhookKey, config);
+        TimeLimiter timeLimiter = timeLimiterRegistry.timeLimiter(resilienceKey, config);
 
         try {
             return timeLimiter.executeFutureSupplier(

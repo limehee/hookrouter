@@ -1,6 +1,7 @@
 package io.github.limehee.hookrouter.spring.resilience.event;
 
 import io.github.limehee.hookrouter.spring.metrics.WebhookMetrics;
+import io.github.limehee.hookrouter.spring.resilience.ResilienceResourceKey;
 import io.github.resilience4j.ratelimiter.RateLimiter;
 import io.github.resilience4j.ratelimiter.RateLimiterConfig;
 import io.github.resilience4j.ratelimiter.RateLimiterRegistry;
@@ -36,7 +37,8 @@ public class RateLimitEventListener {
         long cooldownMillis = (retryAfter != null && retryAfter > 0) ? retryAfter : DEFAULT_COOLDOWN_MILLIS;
         RateLimiterConfig cooldownConfig = RateLimiterConfig.custom().limitForPeriod(COOLDOWN_LIMIT_FOR_PERIOD)
             .limitRefreshPeriod(Duration.ofMillis(cooldownMillis)).timeoutDuration(Duration.ZERO).build();
-        RateLimiter rateLimiter = rateLimiterRegistry.rateLimiter(event.webhookKey(), cooldownConfig);
+        String resilienceKey = ResilienceResourceKey.of(event.platform(), event.webhookKey());
+        RateLimiter rateLimiter = rateLimiterRegistry.rateLimiter(resilienceKey, cooldownConfig);
 
         rateLimiter.drainPermissions();
     }
