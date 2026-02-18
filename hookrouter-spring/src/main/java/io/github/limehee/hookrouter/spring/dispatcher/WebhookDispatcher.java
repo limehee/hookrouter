@@ -339,14 +339,12 @@ public class WebhookDispatcher {
         AtomicInteger attemptCount = new AtomicInteger(0);
         AtomicReference<SendResult> lastResult = new AtomicReference<>();
 
-        retry.getEventPublisher().onRetry(event -> {
-            int currentAttempt = event.getNumberOfRetryAttempts();
-            metrics.recordRetry(target.platform(), target.webhookKey(), typeId, currentAttempt);
-        });
-
         try {
             SendResult result = retry.executeSupplier(() -> {
-                attemptCount.incrementAndGet();
+                int currentAttempt = attemptCount.incrementAndGet();
+                if (currentAttempt > 1) {
+                    metrics.recordRetry(target.platform(), target.webhookKey(), typeId, currentAttempt - 1);
+                }
                 SendResult sendResult = sendWithTimeout(
                     sender,
                     target.webhookUrl(),
