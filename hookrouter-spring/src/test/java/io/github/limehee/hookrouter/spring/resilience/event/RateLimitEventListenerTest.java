@@ -60,6 +60,9 @@ class RateLimitEventListenerTest {
 
             assertThat(adjustedLimiter.getMetrics().getAvailablePermissions())
                 .isLessThanOrEqualTo(1);
+            assertThat(adjustedLimiter.getRateLimiterConfig().getLimitRefreshPeriod())
+                .isEqualTo(Duration.ofMillis(30000));
+            assertThat(adjustedLimiter.getRateLimiterConfig().getLimitForPeriod()).isEqualTo(1);
 
             verify(webhookMetrics).recordExternalRateLimitDetected(
                 "slack", webhookKey, "demo.test.event", 30000L);
@@ -82,6 +85,9 @@ class RateLimitEventListenerTest {
 
             assertThat(adjustedLimiter.getMetrics().getAvailablePermissions())
                 .isLessThanOrEqualTo(1);
+            assertThat(adjustedLimiter.getRateLimiterConfig().getLimitRefreshPeriod())
+                .isEqualTo(Duration.ofMillis(60000));
+            assertThat(adjustedLimiter.getRateLimiterConfig().getLimitForPeriod()).isEqualTo(1);
 
             verify(webhookMetrics).recordExternalRateLimitDetected(
                 "slack", webhookKey, "demo.test.event", null);
@@ -109,6 +115,8 @@ class RateLimitEventListenerTest {
 
             assertThat(limiter1.getMetrics().getAvailablePermissions())
                 .isLessThanOrEqualTo(1);
+            assertThat(limiter1.getRateLimiterConfig().getLimitRefreshPeriod())
+                .isEqualTo(Duration.ofMillis(10000));
 
             assertThat(limiter2After.getMetrics().getAvailablePermissions())
                 .isEqualTo(permissionsBefore);

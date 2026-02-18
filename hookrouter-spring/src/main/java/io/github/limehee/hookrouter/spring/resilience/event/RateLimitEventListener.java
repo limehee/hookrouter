@@ -38,6 +38,7 @@ public class RateLimitEventListener {
         RateLimiterConfig cooldownConfig = RateLimiterConfig.custom().limitForPeriod(COOLDOWN_LIMIT_FOR_PERIOD)
             .limitRefreshPeriod(Duration.ofMillis(cooldownMillis)).timeoutDuration(Duration.ZERO).build();
         String resilienceKey = ResilienceResourceKey.of(event.platform(), event.webhookKey());
+        rateLimiterRegistry.remove(resilienceKey);
         RateLimiter rateLimiter = rateLimiterRegistry.rateLimiter(resilienceKey, cooldownConfig);
 
         rateLimiter.drainPermissions();
