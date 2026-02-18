@@ -35,6 +35,65 @@ import org.springframework.context.annotation.Bean;
 
 class WebhookEndToEndFlowTest {
 
+    private static ConfigurableApplicationContext startContext(Map<String, Object> properties) {
+        SpringApplication application = new SpringApplication(E2eApp.class);
+        application.setWebApplicationType(WebApplicationType.NONE);
+        application.setDefaultProperties(properties);
+        return application.run();
+    }
+
+    private static Map<String, Object> reprocessProperties() {
+        Map<String, Object> properties = new HashMap<>();
+        properties.put("hookrouter.default-mappings[0].platform", "slack");
+        properties.put("hookrouter.default-mappings[0].webhook", "alerts");
+        properties.put("hookrouter.platforms.slack.endpoints.alerts.url", "https://hooks.slack.com/e2e");
+        properties.put("hookrouter.async.core-pool-size", "1");
+        properties.put("hookrouter.async.max-pool-size", "1");
+        properties.put("hookrouter.async.queue-capacity", "10");
+        properties.put("hookrouter.dead-letter.enabled", "true");
+        properties.put("hookrouter.retry.enabled", "true");
+        properties.put("hookrouter.retry.max-attempts", "1");
+        properties.put("hookrouter.retry.initial-delay", "1");
+        properties.put("hookrouter.retry.max-delay", "10");
+        properties.put("hookrouter.retry.multiplier", "1.0");
+        properties.put("hookrouter.retry.jitter-factor", "0.0");
+        properties.put("hookrouter.timeout.enabled", "false");
+        properties.put("hookrouter.rate-limiter.enabled", "false");
+        properties.put("hookrouter.bulkhead.enabled", "false");
+        properties.put("hookrouter.circuit-breaker.enabled", "false");
+        return properties;
+    }
+
+    private static Map<String, Object> circuitBreakerProperties() {
+        Map<String, Object> properties = new HashMap<>();
+        properties.put("hookrouter.default-mappings[0].platform", "slack");
+        properties.put("hookrouter.default-mappings[0].webhook", "alerts");
+        properties.put("hookrouter.platforms.slack.endpoints.alerts.url", "https://hooks.slack.com/e2e");
+        properties.put("hookrouter.async.core-pool-size", "1");
+        properties.put("hookrouter.async.max-pool-size", "1");
+        properties.put("hookrouter.async.queue-capacity", "10");
+        properties.put("hookrouter.dead-letter.enabled", "true");
+        properties.put("hookrouter.retry.enabled", "false");
+        properties.put("hookrouter.timeout.enabled", "false");
+        properties.put("hookrouter.rate-limiter.enabled", "false");
+        properties.put("hookrouter.bulkhead.enabled", "false");
+        properties.put("hookrouter.circuit-breaker.enabled", "true");
+        properties.put("hookrouter.circuit-breaker.failure-threshold", "2");
+        properties.put("hookrouter.circuit-breaker.failure-rate-threshold", "50");
+        properties.put("hookrouter.circuit-breaker.success-threshold", "1");
+        properties.put("hookrouter.circuit-breaker.wait-duration", "600000");
+        return properties;
+    }
+
+    private static Notification<E2eContext> notification(String value) {
+        return Notification.of("e2e.event", "general", new E2eContext(value));
+    }
+
+    private static double counter(MeterRegistry meterRegistry, String metricName, String... tags) {
+        Counter counter = meterRegistry.find(metricName).tags(tags).counter();
+        return counter == null ? 0.0 : counter.count();
+    }
+
     @Test
     void deadLetterShouldBeStoredAndReprocessedSuccessfully() {
         try (ConfigurableApplicationContext context = startContext(reprocessProperties())) {
@@ -102,63 +161,10 @@ class WebhookEndToEndFlowTest {
         }
     }
 
-    private static ConfigurableApplicationContext startContext(Map<String, Object> properties) {
-        SpringApplication application = new SpringApplication(E2eApp.class);
-        application.setWebApplicationType(WebApplicationType.NONE);
-        application.setDefaultProperties(properties);
-        return application.run();
-    }
-
-    private static Map<String, Object> reprocessProperties() {
-        Map<String, Object> properties = new HashMap<>();
-        properties.put("hookrouter.default-mappings[0].platform", "slack");
-        properties.put("hookrouter.default-mappings[0].webhook", "alerts");
-        properties.put("hookrouter.platforms.slack.endpoints.alerts.url", "https://hooks.slack.com/e2e");
-        properties.put("hookrouter.async.core-pool-size", "1");
-        properties.put("hookrouter.async.max-pool-size", "1");
-        properties.put("hookrouter.async.queue-capacity", "10");
-        properties.put("hookrouter.dead-letter.enabled", "true");
-        properties.put("hookrouter.retry.enabled", "true");
-        properties.put("hookrouter.retry.max-attempts", "1");
-        properties.put("hookrouter.retry.initial-delay", "1");
-        properties.put("hookrouter.retry.max-delay", "10");
-        properties.put("hookrouter.retry.multiplier", "1.0");
-        properties.put("hookrouter.retry.jitter-factor", "0.0");
-        properties.put("hookrouter.timeout.enabled", "false");
-        properties.put("hookrouter.rate-limiter.enabled", "false");
-        properties.put("hookrouter.bulkhead.enabled", "false");
-        properties.put("hookrouter.circuit-breaker.enabled", "false");
-        return properties;
-    }
-
-    private static Map<String, Object> circuitBreakerProperties() {
-        Map<String, Object> properties = new HashMap<>();
-        properties.put("hookrouter.default-mappings[0].platform", "slack");
-        properties.put("hookrouter.default-mappings[0].webhook", "alerts");
-        properties.put("hookrouter.platforms.slack.endpoints.alerts.url", "https://hooks.slack.com/e2e");
-        properties.put("hookrouter.async.core-pool-size", "1");
-        properties.put("hookrouter.async.max-pool-size", "1");
-        properties.put("hookrouter.async.queue-capacity", "10");
-        properties.put("hookrouter.dead-letter.enabled", "true");
-        properties.put("hookrouter.retry.enabled", "false");
-        properties.put("hookrouter.timeout.enabled", "false");
-        properties.put("hookrouter.rate-limiter.enabled", "false");
-        properties.put("hookrouter.bulkhead.enabled", "false");
-        properties.put("hookrouter.circuit-breaker.enabled", "true");
-        properties.put("hookrouter.circuit-breaker.failure-threshold", "2");
-        properties.put("hookrouter.circuit-breaker.failure-rate-threshold", "50");
-        properties.put("hookrouter.circuit-breaker.success-threshold", "1");
-        properties.put("hookrouter.circuit-breaker.wait-duration", "600000");
-        return properties;
-    }
-
-    private static Notification<E2eContext> notification(String value) {
-        return Notification.of("e2e.event", "general", new E2eContext(value));
-    }
-
-    private static double counter(MeterRegistry meterRegistry, String metricName, String... tags) {
-        Counter counter = meterRegistry.find(metricName).tags(tags).counter();
-        return counter == null ? 0.0 : counter.count();
+    private enum SenderMode {
+        SUCCESS,
+        RETRYABLE_FAILURE,
+        NON_RETRYABLE_FAILURE
     }
 
     @SpringBootConfiguration(proxyBeanMethods = false)
@@ -212,15 +218,11 @@ class WebhookEndToEndFlowTest {
     }
 
     private record E2eContext(String value) {
-    }
 
-    private enum SenderMode {
-        SUCCESS,
-        RETRYABLE_FAILURE,
-        NON_RETRYABLE_FAILURE
     }
 
     static final class StatefulWebhookSender implements WebhookSender {
+
         private final AtomicReference<SenderMode> mode = new AtomicReference<>(SenderMode.SUCCESS);
         private final AtomicInteger sendCount = new AtomicInteger(0);
 

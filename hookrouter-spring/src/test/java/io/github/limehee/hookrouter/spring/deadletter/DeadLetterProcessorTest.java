@@ -14,7 +14,6 @@ import io.github.limehee.hookrouter.spring.deadletter.DeadLetterHandler.FailureR
 import io.github.limehee.hookrouter.spring.metrics.WebhookMetrics;
 import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;

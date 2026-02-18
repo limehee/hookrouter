@@ -8,7 +8,6 @@ import io.github.limehee.hookrouter.spring.config.WebhookEndpointConfig.RateLimi
 import io.github.limehee.hookrouter.spring.config.WebhookEndpointConfig.RetryOverride;
 import io.github.limehee.hookrouter.spring.config.WebhookEndpointConfig.TimeoutOverride;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 

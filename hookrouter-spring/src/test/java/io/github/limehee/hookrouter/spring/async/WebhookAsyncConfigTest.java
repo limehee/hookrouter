@@ -6,7 +6,6 @@ import static org.mockito.BDDMockito.given;
 import io.github.limehee.hookrouter.spring.config.WebhookConfigProperties;
 import io.github.limehee.hookrouter.spring.config.WebhookConfigProperties.AsyncProperties;
 import java.util.concurrent.Executor;
-import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;

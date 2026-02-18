@@ -34,6 +34,77 @@ class WebhookResilienceIntegrationTest {
         .withUserConfiguration(TestConfig.class)
         .withBean(MeterRegistry.class, SimpleMeterRegistry::new);
 
+    private static Notification<TestContext> testNotification(String value) {
+        return Notification.of("integration.event", "general", new TestContext(value));
+    }
+
+    private static String[] retryEnabledProperties() {
+        return new String[]{
+            "hookrouter.default-mappings[0].platform=slack",
+            "hookrouter.default-mappings[0].webhook=alerts",
+            "hookrouter.platforms.slack.endpoints.alerts.url=https://hooks.slack.com/integration",
+            "hookrouter.async.core-pool-size=1",
+            "hookrouter.async.max-pool-size=1",
+            "hookrouter.async.queue-capacity=10",
+            "hookrouter.retry.enabled=true",
+            "hookrouter.retry.max-attempts=3",
+            "hookrouter.retry.initial-delay=1",
+            "hookrouter.retry.max-delay=10",
+            "hookrouter.retry.multiplier=1.0",
+            "hookrouter.retry.jitter-factor=0.0",
+            "hookrouter.timeout.enabled=false",
+            "hookrouter.rate-limiter.enabled=false",
+            "hookrouter.bulkhead.enabled=false",
+            "hookrouter.circuit-breaker.enabled=false"
+        };
+    }
+
+    private static String[] timeoutRetryProperties() {
+        return new String[]{
+            "hookrouter.default-mappings[0].platform=slack",
+            "hookrouter.default-mappings[0].webhook=alerts",
+            "hookrouter.platforms.slack.endpoints.alerts.url=https://hooks.slack.com/integration",
+            "hookrouter.async.core-pool-size=1",
+            "hookrouter.async.max-pool-size=1",
+            "hookrouter.async.queue-capacity=10",
+            "hookrouter.retry.enabled=true",
+            "hookrouter.retry.max-attempts=1",
+            "hookrouter.retry.initial-delay=1",
+            "hookrouter.retry.max-delay=10",
+            "hookrouter.retry.multiplier=1.0",
+            "hookrouter.retry.jitter-factor=0.0",
+            "hookrouter.timeout.enabled=true",
+            "hookrouter.timeout.duration=20",
+            "hookrouter.rate-limiter.enabled=false",
+            "hookrouter.bulkhead.enabled=false",
+            "hookrouter.circuit-breaker.enabled=false"
+        };
+    }
+
+    private static String[] rateLimitCooldownProperties() {
+        return new String[]{
+            "hookrouter.default-mappings[0].platform=slack",
+            "hookrouter.default-mappings[0].webhook=alerts",
+            "hookrouter.platforms.slack.endpoints.alerts.url=https://hooks.slack.com/integration",
+            "hookrouter.async.core-pool-size=1",
+            "hookrouter.async.max-pool-size=1",
+            "hookrouter.async.queue-capacity=10",
+            "hookrouter.retry.enabled=false",
+            "hookrouter.timeout.enabled=false",
+            "hookrouter.rate-limiter.enabled=true",
+            "hookrouter.rate-limiter.limit-for-period=10",
+            "hookrouter.rate-limiter.limit-refresh-period=60000",
+            "hookrouter.rate-limiter.timeout-duration=0",
+            "hookrouter.bulkhead.enabled=false",
+            "hookrouter.circuit-breaker.enabled=false"
+        };
+    }
+
+    private static double counter(MeterRegistry meterRegistry, String metricName, String... tags) {
+        Counter counter = meterRegistry.find(metricName).tags(tags).counter();
+        return counter == null ? 0.0 : counter.count();
+    }
+
     @Test
     void retryableFailureShouldBeRetriedUntilSuccess() {
         AtomicInteger sendCount = new AtomicInteger(0);
@@ -175,77 +246,6 @@ class WebhookResilienceIntegrationTest {
             });
     }
 
-    private static Notification<TestContext> testNotification(String value) {
-        return Notification.of("integration.event", "general", new TestContext(value));
-    }
-
-    private static String[] retryEnabledProperties() {
-        return new String[]{
-            "hookrouter.default-mappings[0].platform=slack",
-            "hookrouter.default-mappings[0].webhook=alerts",
-            "hookrouter.platforms.slack.endpoints.alerts.url=https://hooks.slack.com/integration",
-            "hookrouter.async.core-pool-size=1",
-            "hookrouter.async.max-pool-size=1",
-            "hookrouter.async.queue-capacity=10",
-            "hookrouter.retry.enabled=true",
-            "hookrouter.retry.max-attempts=3",
-            "hookrouter.retry.initial-delay=1",
-            "hookrouter.retry.max-delay=10",
-            "hookrouter.retry.multiplier=1.0",
-            "hookrouter.retry.jitter-factor=0.0",
-            "hookrouter.timeout.enabled=false",
-            "hookrouter.rate-limiter.enabled=false",
-            "hookrouter.bulkhead.enabled=false",
-            "hookrouter.circuit-breaker.enabled=false"
-        };
-    }
-
-    private static String[] timeoutRetryProperties() {
-        return new String[]{
-            "hookrouter.default-mappings[0].platform=slack",
-            "hookrouter.default-mappings[0].webhook=alerts",
-            "hookrouter.platforms.slack.endpoints.alerts.url=https://hooks.slack.com/integration",
-            "hookrouter.async.core-pool-size=1",
-            "hookrouter.async.max-pool-size=1",
-            "hookrouter.async.queue-capacity=10",
-            "hookrouter.retry.enabled=true",
-            "hookrouter.retry.max-attempts=1",
-            "hookrouter.retry.initial-delay=1",
-            "hookrouter.retry.max-delay=10",
-            "hookrouter.retry.multiplier=1.0",
-            "hookrouter.retry.jitter-factor=0.0",
-            "hookrouter.timeout.enabled=true",
-            "hookrouter.timeout.duration=20",
-            "hookrouter.rate-limiter.enabled=false",
-            "hookrouter.bulkhead.enabled=false",
-            "hookrouter.circuit-breaker.enabled=false"
-        };
-    }
-
-    private static String[] rateLimitCooldownProperties() {
-        return new String[]{
-            "hookrouter.default-mappings[0].platform=slack",
-            "hookrouter.default-mappings[0].webhook=alerts",
-            "hookrouter.platforms.slack.endpoints.alerts.url=https://hooks.slack.com/integration",
-            "hookrouter.async.core-pool-size=1",
-            "hookrouter.async.max-pool-size=1",
-            "hookrouter.async.queue-capacity=10",
-            "hookrouter.retry.enabled=false",
-            "hookrouter.timeout.enabled=false",
-            "hookrouter.rate-limiter.enabled=true",
-            "hookrouter.rate-limiter.limit-for-period=10",
-            "hookrouter.rate-limiter.limit-refresh-period=60000",
-            "hookrouter.rate-limiter.timeout-duration=0",
-            "hookrouter.bulkhead.enabled=false",
-            "hookrouter.circuit-breaker.enabled=false"
-        };
-    }
-
-    private static double counter(MeterRegistry meterRegistry, String metricName, String... tags) {
-        Counter counter = meterRegistry.find(metricName).tags(tags).counter();
-        return counter == null ? 0.0 : counter.count();
-    }
-
     @Configuration(proxyBeanMethods = false)
     static class TestConfig {
 
@@ -281,5 +281,6 @@ class WebhookResilienceIntegrationTest {
     }
 
     private record TestContext(String value) {
+
     }
 }

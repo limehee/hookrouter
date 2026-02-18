@@ -4,7 +4,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 
 import java.time.Duration;
-import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
@@ -102,11 +101,13 @@ class NoOpWebhookMetricsTest {
         void shouldNotThrowExceptionDuringExecutionWhenRecordExternalRateLimitDetected() {
             // When & Then
             assertThatCode(() ->
-                NoOpWebhookMetrics.INSTANCE.recordExternalRateLimitDetected("slack", "hookrouter-key", "test-type", 60000L)
+                NoOpWebhookMetrics.INSTANCE.recordExternalRateLimitDetected("slack", "hookrouter-key", "test-type",
+                    60000L)
             ).doesNotThrowAnyException();
 
             assertThatCode(() ->
-                NoOpWebhookMetrics.INSTANCE.recordExternalRateLimitDetected("slack", "hookrouter-key", "test-type", null)
+                NoOpWebhookMetrics.INSTANCE.recordExternalRateLimitDetected("slack", "hookrouter-key", "test-type",
+                    null)
             ).doesNotThrowAnyException();
         }
 

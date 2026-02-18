@@ -15,7 +15,6 @@ import io.github.limehee.hookrouter.spring.config.WebhookEndpointConfig.RetryOve
 import io.github.limehee.hookrouter.spring.config.WebhookEndpointConfig.TimeoutOverride;
 import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 

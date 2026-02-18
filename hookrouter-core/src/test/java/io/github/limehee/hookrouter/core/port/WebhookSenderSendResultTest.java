@@ -3,7 +3,6 @@ package io.github.limehee.hookrouter.core.port;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.github.limehee.hookrouter.core.port.WebhookSender.SendResult;
-import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 

@@ -9,7 +9,6 @@ import io.github.limehee.hookrouter.core.domain.WebhookFormatter;
 import io.github.limehee.hookrouter.core.exception.DuplicateFallbackFormatterException;
 import io.github.limehee.hookrouter.core.exception.DuplicateFormatterException;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
