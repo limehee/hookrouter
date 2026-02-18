@@ -13,12 +13,14 @@ import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import org.jspecify.annotations.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Async;
 
 public class NotificationListener {
 
-    private static final System.Logger LOGGER = System.getLogger(NotificationListener.class.getName());
+    private static final Logger LOGGER = LoggerFactory.getLogger(NotificationListener.class);
     private final RoutingPolicy routingPolicy;
     private final FormatterRegistry formatterRegistry;
     private final Map<String, WebhookSender> senderMap;
@@ -49,8 +51,8 @@ public class NotificationListener {
                 dispatchToTarget(notification, target);
             }
         } catch (Exception e) {
-            LOGGER.log(System.Logger.Level.ERROR,
-                "Failed to process notification typeId=" + typeId + ", category=" + notification.getCategory(), e);
+            LOGGER.error("Failed to process notification typeId={}, category={}",
+                typeId, notification.getCategory(), e);
         }
     }
 
@@ -99,8 +101,8 @@ public class NotificationListener {
         } catch (ClassCastException e) {
             return new PayloadResult(null, "Formatter type cast failed: " + e.getMessage());
         } catch (Exception e) {
-            LOGGER.log(System.Logger.Level.WARNING,
-                "Formatter failed for typeId=" + notification.getTypeId() + ", platform=" + formatter.platform(), e);
+            LOGGER.warn("Formatter failed for typeId={}, platform={}",
+                notification.getTypeId(), formatter.platform(), e);
             return new PayloadResult(null,
                 "Formatter execution failed: " + (e.getMessage() != null ? e.getMessage() : e.getClass().getName()));
         }

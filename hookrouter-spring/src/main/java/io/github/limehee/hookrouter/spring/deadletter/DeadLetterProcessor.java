@@ -8,10 +8,12 @@ import io.github.limehee.hookrouter.spring.deadletter.DeadLetterHandler.FailureR
 import io.github.limehee.hookrouter.spring.metrics.WebhookMetrics;
 import java.util.Objects;
 import org.jspecify.annotations.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class DeadLetterProcessor {
 
-    private static final System.Logger LOGGER = System.getLogger(DeadLetterProcessor.class.getName());
+    private static final Logger LOGGER = LoggerFactory.getLogger(DeadLetterProcessor.class);
     private final DeadLetterHandler deadLetterHandler;
     private final WebhookMetrics metrics;
 
@@ -77,9 +79,8 @@ public class DeadLetterProcessor {
             deadLetterHandler.handle(deadLetter);
             handlerSuccess = true;
         } catch (Exception e) {
-            LOGGER.log(System.Logger.Level.WARNING,
-                "Dead-letter handler failed for typeId=" + typeId + ", platform=" + target.platform()
-                    + ", webhookKey=" + target.webhookKey(),
+            LOGGER.warn("Dead-letter handler failed for typeId={}, platform={}, webhookKey={}",
+                typeId, target.platform(), target.webhookKey(),
                 e);
         } finally {
             recordDeadLetterMetric(target, typeId, deadLetter.reason(), handlerSuccess);
@@ -94,9 +95,8 @@ public class DeadLetterProcessor {
                 metrics.recordDeadLetterHandlerFailure(target.platform(), target.webhookKey(), typeId);
             }
         } catch (Exception e) {
-            LOGGER.log(System.Logger.Level.WARNING,
-                "Dead-letter metric recording failed for typeId=" + typeId + ", platform=" + target.platform()
-                    + ", webhookKey=" + target.webhookKey() + ", reason=" + reason.name(),
+            LOGGER.warn("Dead-letter metric recording failed for typeId={}, platform={}, webhookKey={}, reason={}",
+                typeId, target.platform(), target.webhookKey(), reason.name(),
                 e);
         }
     }

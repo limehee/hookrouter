@@ -6,10 +6,12 @@ import io.github.limehee.hookrouter.spring.config.WebhookConfigProperties;
 import io.github.limehee.hookrouter.spring.config.WebhookConfigProperties.PlatformMapping;
 import java.util.ArrayList;
 import java.util.List;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class ConfigBasedRoutingPolicy implements RoutingPolicy {
 
-    private static final System.Logger LOGGER = System.getLogger(ConfigBasedRoutingPolicy.class.getName());
+    private static final Logger LOGGER = LoggerFactory.getLogger(ConfigBasedRoutingPolicy.class);
     private final WebhookConfigProperties properties;
 
     public ConfigBasedRoutingPolicy(final WebhookConfigProperties properties) {
@@ -52,8 +54,7 @@ public class ConfigBasedRoutingPolicy implements RoutingPolicy {
             try {
                 webhookUrl = properties.getWebhookUrl(platform, webhookKey);
             } catch (Exception e) {
-                LOGGER.log(System.Logger.Level.WARNING,
-                    "Failed to resolve webhook URL for platform=" + platform + ", webhookKey=" + webhookKey, e);
+                LOGGER.warn("Failed to resolve webhook URL for platform={}, webhookKey={}", platform, webhookKey, e);
                 continue;
             }
             if (webhookUrl == null) {

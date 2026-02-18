@@ -6,12 +6,14 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import org.jspecify.annotations.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.DisposableBean;
 import org.springframework.beans.factory.InitializingBean;
 
 public class DeadLetterScheduler implements InitializingBean, DisposableBean {
 
-    private static final System.Logger LOGGER = System.getLogger(DeadLetterScheduler.class.getName());
+    private static final Logger LOGGER = LoggerFactory.getLogger(DeadLetterScheduler.class);
     private final DeadLetterReprocessor reprocessor;
     private final WebhookConfigProperties properties;
     private final ScheduledExecutorService scheduler;
@@ -56,7 +58,7 @@ public class DeadLetterScheduler implements InitializingBean, DisposableBean {
             int batchSize = properties.getDeadLetter().getSchedulerBatchSize();
             reprocessor.reprocessPending(batchSize);
         } catch (Exception e) {
-            LOGGER.log(System.Logger.Level.WARNING, "Dead-letter scheduled reprocessing failed", e);
+            LOGGER.warn("Dead-letter scheduled reprocessing failed", e);
         }
     }
 }
