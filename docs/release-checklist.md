@@ -6,6 +6,7 @@
 - [ ] `./scripts/verify-consumer-smoke.sh` passes
 - [ ] `./gradlew apiCompat -PapiBaselineVersion=<previous>` passes
 - [ ] publishing secrets are configured (`OSSRH_USERNAME`, `OSSRH_PASSWORD`, `SIGNING_KEY`, `SIGNING_PASSWORD`)
+- [ ] Central Portal token username/password are mapped to `OSSRH_USERNAME`/`OSSRH_PASSWORD`
 
 ## Versioning
 
