@@ -19,8 +19,8 @@ dependencies {
     implementation platform('org.springframework.boot:spring-boot-dependencies:4.0.2')
     testImplementation platform('org.springframework.boot:spring-boot-dependencies:4.0.2')
 
-    api 'io.github.limehee:hookrouter-core:0.1.0-SNAPSHOT'
-    implementation 'io.github.limehee:hookrouter-spring:0.1.0-SNAPSHOT'
+    api 'io.github.limehee:hookrouter-core:0.1.0'
+    implementation 'io.github.limehee:hookrouter-spring:0.1.0'
 
     implementation 'org.springframework.boot:spring-boot-starter-web'
 
