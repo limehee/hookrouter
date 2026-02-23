@@ -170,9 +170,10 @@ In IntelliJ and Spring-aware tooling, this enables:
 
 - auto-completion for `hookrouter.*` keys
 - inline descriptions for core keys
-- common value suggestions for selected keys
+- default value visibility for documented properties
 
-Hint values are suggestions, not strict enums. You can configure other valid values.
+To avoid restrictive IDE validation in numeric fields, `hookrouter` does not publish value-enum style hints.
+Configure values based on validation rules in this document.
 
 For map-based dynamic keys such as `hookrouter.platforms.<platform>.endpoints.<webhookKey>.*`,
 the IDE can suggest the static prefix, but `<platform>` and `<webhookKey>` are user-defined and
