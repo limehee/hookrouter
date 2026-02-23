@@ -328,8 +328,8 @@ class WebhookConfigPropertiesTest {
             // Then
             assertThat(retry.isEnabled()).isTrue();
             assertThat(retry.getMaxAttempts()).isEqualTo(3);
-            assertThat(retry.getInitialDelay()).isEqualTo(1000L);
-            assertThat(retry.getMaxDelay()).isEqualTo(10000L);
+            assertThat(retry.getInitialDelay()).isEqualTo(300L);
+            assertThat(retry.getMaxDelay()).isEqualTo(5000L);
             assertThat(retry.getMultiplier()).isEqualTo(2.0);
             assertThat(retry.getJitterFactor()).isEqualTo(0.1);
         }
@@ -501,6 +501,46 @@ class WebhookConfigPropertiesTest {
             // Then
             assertThat(properties.getCircuitBreaker().isEnabled()).isFalse();
             assertThat(properties.getCircuitBreaker().getFailureThreshold()).isEqualTo(7);
+        }
+    }
+
+    @Nested
+    class TimeoutPropertiesTest {
+
+        @Test
+        void shouldMatchExpectedTimeoutDefaults() {
+            WebhookConfigProperties.TimeoutProperties timeout = new WebhookConfigProperties.TimeoutProperties();
+
+            assertThat(timeout.isEnabled()).isTrue();
+            assertThat(timeout.getDuration()).isEqualTo(5000L);
+        }
+    }
+
+    @Nested
+    class RateLimiterPropertiesTest {
+
+        @Test
+        void shouldMatchExpectedRateLimiterDefaults() {
+            WebhookConfigProperties.RateLimiterProperties rateLimiter =
+                new WebhookConfigProperties.RateLimiterProperties();
+
+            assertThat(rateLimiter.isEnabled()).isTrue();
+            assertThat(rateLimiter.getLimitForPeriod()).isEqualTo(200);
+            assertThat(rateLimiter.getLimitRefreshPeriod()).isEqualTo(1000L);
+            assertThat(rateLimiter.getTimeoutDuration()).isEqualTo(0L);
+        }
+    }
+
+    @Nested
+    class BulkheadPropertiesTest {
+
+        @Test
+        void shouldMatchExpectedBulkheadDefaults() {
+            WebhookConfigProperties.BulkheadProperties bulkhead = new WebhookConfigProperties.BulkheadProperties();
+
+            assertThat(bulkhead.isEnabled()).isTrue();
+            assertThat(bulkhead.getMaxConcurrentCalls()).isEqualTo(10);
+            assertThat(bulkhead.getMaxWaitDuration()).isEqualTo(0L);
         }
     }
 

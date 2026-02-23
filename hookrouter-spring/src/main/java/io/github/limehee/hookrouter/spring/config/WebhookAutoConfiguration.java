@@ -53,6 +53,8 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.Executor;
 import java.util.stream.Collectors;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
@@ -73,6 +75,8 @@ import org.springframework.beans.factory.annotation.Qualifier;
 @EnableConfigurationProperties(WebhookConfigProperties.class)
 @Import(WebhookAsyncConfig.class)
 public class WebhookAutoConfiguration {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(WebhookAutoConfiguration.class);
 
     @Bean
     public Boolean webhookConfigValidation(WebhookConfigProperties properties) {
@@ -199,6 +203,12 @@ public class WebhookAutoConfiguration {
     @ConditionalOnMissingBean({DeadLetterHandler.class, DeadLetterStore.class})
     @ConditionalOnProperty(prefix = "hookrouter.dead-letter", name = "enabled", havingValue = "true", matchIfMissing = true)
     public DeadLetterHandler defaultDeadLetterHandler() {
+        if (LOGGER.isWarnEnabled()) {
+            LOGGER.warn(
+                "Dead-letter is enabled but no DeadLetterStore bean is configured. "
+                    + "Falling back to LoggingDeadLetterHandler (no persistence/replay). "
+                    + "Register a DeadLetterStore bean for durable dead-letter processing.");
+        }
         return new LoggingDeadLetterHandler();
     }
 

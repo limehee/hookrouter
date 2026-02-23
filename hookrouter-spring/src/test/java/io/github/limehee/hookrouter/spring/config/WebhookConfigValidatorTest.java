@@ -149,6 +149,7 @@ class WebhookConfigValidatorTest {
             // Given
             properties.getAsync().setCorePoolSize(5);
             properties.getAsync().setMaxPoolSize(5);
+            properties.getBulkhead().setEnabled(false);
 
             // When & Then
             assertThatCode(() -> WebhookConfigValidator.validate(properties))

@@ -35,13 +35,13 @@
     {
       "name": "hookrouter.retry.initial-delay",
       "type": "java.lang.Long",
-      "defaultValue": 1000,
+      "defaultValue": 300,
       "description": "Initial retry delay in milliseconds. Must be greater than 0."
     },
     {
       "name": "hookrouter.retry.max-delay",
       "type": "java.lang.Long",
-      "defaultValue": 10000,
+      "defaultValue": 5000,
       "description": "Maximum retry delay in milliseconds. Must be greater than 0 and >= initial-delay. If timeout is enabled, timeout.duration must be >= max-delay."
     },
     {
@@ -65,7 +65,7 @@
     {
       "name": "hookrouter.timeout.duration",
       "type": "java.lang.Long",
-      "defaultValue": 15000,
+      "defaultValue": 5000,
       "description": "Timeout in milliseconds. Must be greater than 0. If retry is enabled, this must be >= retry.max-delay. If enabled with rate limiter/bulkhead, this must be >= their wait timeouts."
     },
     {
@@ -101,13 +101,13 @@
     {
       "name": "hookrouter.rate-limiter.enabled",
       "type": "java.lang.Boolean",
-      "defaultValue": false,
+      "defaultValue": true,
       "description": "Enable rate limiting."
     },
     {
       "name": "hookrouter.rate-limiter.limit-for-period",
       "type": "java.lang.Integer",
-      "defaultValue": 50,
+      "defaultValue": 200,
       "description": "Permits per refresh period. Must be greater than 0."
     },
     {
@@ -119,19 +119,19 @@
     {
       "name": "hookrouter.rate-limiter.timeout-duration",
       "type": "java.lang.Long",
-      "defaultValue": 5000,
+      "defaultValue": 0,
       "description": "Permit acquisition timeout in milliseconds. Must be >= 0. If timeout is enabled, this must be <= timeout.duration."
     },
     {
       "name": "hookrouter.bulkhead.enabled",
       "type": "java.lang.Boolean",
-      "defaultValue": false,
+      "defaultValue": true,
       "description": "Enable bulkhead isolation."
     },
     {
       "name": "hookrouter.bulkhead.max-concurrent-calls",
       "type": "java.lang.Integer",
-      "defaultValue": 25,
+      "defaultValue": 10,
       "description": "Maximum concurrent calls. Must be greater than 0. When bulkhead is enabled, this must be <= async.max-pool-size."
     },
     {

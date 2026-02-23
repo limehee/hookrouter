@@ -200,8 +200,8 @@ public class WebhookConfigProperties {
         private static final Random RANDOM = new Random();
         private boolean enabled = true;
         private int maxAttempts = 3;
-        private long initialDelay = 1000;
-        private long maxDelay = 10000;
+        private long initialDelay = 300;
+        private long maxDelay = 5000;
         private double multiplier = 2.0;
         private double jitterFactor = 0.1;
 
@@ -282,7 +282,7 @@ public class WebhookConfigProperties {
     public static class TimeoutProperties {
 
         private boolean enabled = true;
-        private long duration = 15000;
+        private long duration = 5000;
 
         public boolean isEnabled() {
             return this.enabled;
@@ -309,10 +309,10 @@ public class WebhookConfigProperties {
 
     public static class RateLimiterProperties {
 
-        private boolean enabled = false;
-        private int limitForPeriod = 50;
+        private boolean enabled = true;
+        private int limitForPeriod = 200;
         private long limitRefreshPeriod = 1000;
-        private long timeoutDuration = 5000;
+        private long timeoutDuration = 0;
 
         public boolean isEnabled() {
             return this.enabled;
@@ -356,8 +356,8 @@ public class WebhookConfigProperties {
 
     public static class BulkheadProperties {
 
-        private boolean enabled = false;
-        private int maxConcurrentCalls = 25;
+        private boolean enabled = true;
+        private int maxConcurrentCalls = 10;
         private long maxWaitDuration = 0;
 
         public boolean isEnabled() {
