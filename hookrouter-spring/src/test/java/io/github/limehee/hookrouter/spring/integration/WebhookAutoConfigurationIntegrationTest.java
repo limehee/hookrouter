@@ -55,6 +55,14 @@ class WebhookAutoConfigurationIntegrationTest {
         };
     }
 
+    private String[] typeMappingBracketKeyProperties() {
+        return new String[]{
+            "hookrouter.type-mappings[demo.server.error][0].platform=slack",
+            "hookrouter.type-mappings[demo.server.error][0].webhook=error-channel",
+            "hookrouter.platforms.slack.endpoints.error-channel.url=https://hooks.slack.com/error"
+        };
+    }
+
     private String[] categoryMappingOnlyProperties() {
         return new String[]{
             "hookrouter.category-mappings.critical[0].platform=slack",
@@ -93,6 +101,17 @@ class WebhookAutoConfigurationIntegrationTest {
         void shouldVerifyExpectedContextWhenOnlyTypeMappingsAreConfigured() {
             contextRunner
                 .withPropertyValues(typeMappingOnlyProperties())
+                .run(context -> {
+                    assertThat(context).hasSingleBean(WebhookConfigProperties.class);
+                    assertThat(context).hasSingleBean(NotificationListener.class);
+                    assertThat(context).hasSingleBean(RoutingPolicy.class);
+                });
+        }
+
+        @Test
+        void shouldVerifyExpectedContextWhenTypeMappingsUseBracketKeyStyle() {
+            contextRunner
+                .withPropertyValues(typeMappingBracketKeyProperties())
                 .run(context -> {
                     assertThat(context).hasSingleBean(WebhookConfigProperties.class);
                     assertThat(context).hasSingleBean(NotificationListener.class);

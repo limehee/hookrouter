@@ -48,7 +48,9 @@ public final class WebhookRoutingMappingsConfiguredCondition extends SpringBootC
     private boolean isRoutingMappingProperty(String propertyName) {
         return propertyName.startsWith(DEFAULT_MAPPINGS + "[")
             || propertyName.startsWith(TYPE_MAPPINGS + ".")
+            || propertyName.startsWith(TYPE_MAPPINGS + "[")
             || propertyName.startsWith(CATEGORY_MAPPINGS + ".")
+            || propertyName.startsWith(CATEGORY_MAPPINGS + "[")
             || propertyName.startsWith(DEFAULT_MAPPINGS_ENV)
             || propertyName.startsWith(TYPE_MAPPINGS_ENV)
             || propertyName.startsWith(CATEGORY_MAPPINGS_ENV);
