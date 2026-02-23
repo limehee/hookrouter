@@ -4,7 +4,10 @@
 
 Check:
 
-- `hookrouter.default-mappings[0].platform` exists
+- at least one routing mapping exists:
+  - `hookrouter.type-mappings`
+  - `hookrouter.category-mappings`
+  - `hookrouter.default-mappings`
 - required beans are registered (`WebhookSender`, `WebhookFormatter`, `NotificationTypeDefinition`)
 
 ## Notification published but not delivered

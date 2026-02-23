@@ -72,7 +72,8 @@ Notification<String> n = Notification
 Activated when:
 
 - `hookrouter-spring` dependency is present
-- route mapping configuration is provided (typically `hookrouter.default-mappings`)
+- route mapping configuration is provided (`hookrouter.type-mappings`, `hookrouter.category-mappings`,
+  or `hookrouter.default-mappings`)
 
 ### Minimal Configuration
 

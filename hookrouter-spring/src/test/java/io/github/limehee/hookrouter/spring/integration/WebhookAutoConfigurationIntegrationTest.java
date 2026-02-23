@@ -47,6 +47,22 @@ class WebhookAutoConfigurationIntegrationTest {
         };
     }
 
+    private String[] typeMappingOnlyProperties() {
+        return new String[]{
+            "hookrouter.type-mappings.demo.server.error[0].platform=slack",
+            "hookrouter.type-mappings.demo.server.error[0].webhook=error-channel",
+            "hookrouter.platforms.slack.endpoints.error-channel.url=https://hooks.slack.com/error"
+        };
+    }
+
+    private String[] categoryMappingOnlyProperties() {
+        return new String[]{
+            "hookrouter.category-mappings.critical[0].platform=slack",
+            "hookrouter.category-mappings.critical[0].webhook=critical-channel",
+            "hookrouter.platforms.slack.endpoints.critical-channel.url=https://hooks.slack.com/critical"
+        };
+    }
+
     @Configuration(proxyBeanMethods = false)
     static class MeterRegistryConfiguration {
 
@@ -70,6 +86,28 @@ class WebhookAutoConfigurationIntegrationTest {
                     assertThat(context).hasSingleBean(RoutingPolicy.class);
                     assertThat(context).hasSingleBean(FormatterRegistry.class);
                     assertThat(context).hasSingleBean(NotificationTypeRegistry.class);
+                });
+        }
+
+        @Test
+        void shouldVerifyExpectedContextWhenOnlyTypeMappingsAreConfigured() {
+            contextRunner
+                .withPropertyValues(typeMappingOnlyProperties())
+                .run(context -> {
+                    assertThat(context).hasSingleBean(WebhookConfigProperties.class);
+                    assertThat(context).hasSingleBean(NotificationListener.class);
+                    assertThat(context).hasSingleBean(RoutingPolicy.class);
+                });
+        }
+
+        @Test
+        void shouldVerifyExpectedContextWhenOnlyCategoryMappingsAreConfigured() {
+            contextRunner
+                .withPropertyValues(categoryMappingOnlyProperties())
+                .run(context -> {
+                    assertThat(context).hasSingleBean(WebhookConfigProperties.class);
+                    assertThat(context).hasSingleBean(NotificationListener.class);
+                    assertThat(context).hasSingleBean(RoutingPolicy.class);
                 });
         }
 

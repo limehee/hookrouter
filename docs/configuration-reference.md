@@ -15,6 +15,11 @@ Routing priority:
 2. `category-mappings`
 3. `default-mappings`
 
+Routing resolution fallback:
+
+- A higher-priority mapping is selected only when it resolves to at least one enabled and valid target.
+- If it resolves to zero valid targets, routing continues to the next priority level.
+
 ## 2. Resilience Keys
 
 - `hookrouter.retry.*`

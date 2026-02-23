@@ -4,7 +4,7 @@ Production-oriented webhook routing library for Java, with optional Spring Boot 
 
 ## Why this library
 
-- Explicit routing priority: `type-mappings` -> `category-mappings` -> `default-mappings`
+- Explicit routing priority with fallback: `type-mappings` -> `category-mappings` -> `default-mappings`
 - Pure Java core contracts for custom runtime/transport use cases
 - Spring Boot integration for configuration, dispatch pipeline, resilience, and metrics
 - Resilience4j support (retry, timeout, circuit breaker, rate limiter, bulkhead)

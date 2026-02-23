@@ -5,7 +5,10 @@
 Auto-configuration is activated when:
 
 - `hookrouter-spring` dependency is present
-- `hookrouter.default-mappings[0].platform` is present
+- at least one routing mapping is configured:
+  - `hookrouter.type-mappings`
+  - `hookrouter.category-mappings`
+  - `hookrouter.default-mappings`
 
 ## Required Beans
 
@@ -34,6 +37,11 @@ Routing precedence:
 1. `type-mappings`
 2. `category-mappings`
 3. `default-mappings`
+
+Resolution behavior:
+
+- A higher-priority mapping is used only when it resolves to at least one enabled and valid target.
+- If a higher-priority mapping exists but resolves to no valid targets, routing falls back to the next level.
 
 Example:
 

@@ -22,23 +22,24 @@ public class ConfigBasedRoutingPolicy implements RoutingPolicy {
     public List<RoutingTarget> resolve(String typeId, String category) {
 
         List<PlatformMapping> typeMappings = properties.getTypeMappings().get(typeId);
-        if (typeMappings != null && !typeMappings.isEmpty()) {
-            return toRoutingTargets(typeMappings);
+        List<RoutingTarget> typeTargets = toRoutingTargets(typeMappings);
+        if (!typeTargets.isEmpty()) {
+            return typeTargets;
         }
 
         List<PlatformMapping> categoryMappings = properties.getCategoryMappings().get(category);
-        if (categoryMappings != null && !categoryMappings.isEmpty()) {
-            return toRoutingTargets(categoryMappings);
+        List<RoutingTarget> categoryTargets = toRoutingTargets(categoryMappings);
+        if (!categoryTargets.isEmpty()) {
+            return categoryTargets;
         }
 
-        List<PlatformMapping> defaultMappings = properties.getDefaultMappings();
-        if (!defaultMappings.isEmpty()) {
-            return toRoutingTargets(defaultMappings);
-        }
-        return List.of();
+        return toRoutingTargets(properties.getDefaultMappings());
     }
 
     private List<RoutingTarget> toRoutingTargets(List<PlatformMapping> mappings) {
+        if (mappings == null || mappings.isEmpty()) {
+            return List.of();
+        }
         List<RoutingTarget> targets = new ArrayList<>();
         for (PlatformMapping mapping : mappings) {
 

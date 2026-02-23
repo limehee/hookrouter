@@ -63,12 +63,13 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.boot.health.contributor.HealthIndicator;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Conditional;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
 import org.springframework.beans.factory.annotation.Qualifier;
 
 @AutoConfiguration
-@ConditionalOnProperty(prefix = "hookrouter.default-mappings[0]", name = "platform")
+@Conditional(WebhookRoutingMappingsConfiguredCondition.class)
 @EnableConfigurationProperties(WebhookConfigProperties.class)
 @Import(WebhookAsyncConfig.class)
 public class WebhookAutoConfiguration {

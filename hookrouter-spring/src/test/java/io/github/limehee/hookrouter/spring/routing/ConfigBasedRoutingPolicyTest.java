@@ -321,7 +321,7 @@ class ConfigBasedRoutingPolicyTest {
         }
 
         @Test
-        void shouldBeEmptyTargetsWhenTypeMappingIsDisabledEvenIfCategoryMappingIsEnabled() {
+        void shouldUseCategoryTargetsWhenTypeMappingResolvesNoEnabledTarget() {
 
             PlatformMapping disabledTypeMapping = createMapping("slack", "error-channel", false);
             properties.setTypeMappings(Map.of("demo.server.error", List.of(disabledTypeMapping)));
@@ -332,11 +332,12 @@ class ConfigBasedRoutingPolicyTest {
             // When
             List<RoutingTarget> targets = routingPolicy.resolve("demo.server.error", "general");
 
-            assertThat(targets).isEmpty();
+            assertThat(targets).hasSize(1);
+            assertThat(targets.get(0).webhookKey()).isEqualTo("category-channel");
         }
 
         @Test
-        void shouldBeEmptyTargetsWhenDisabledCategoryMappingOverridesEnabledDefault() {
+        void shouldUseDefaultTargetsWhenCategoryMappingResolvesNoEnabledTarget() {
 
             PlatformMapping disabledCategoryMapping = createMapping("slack", "category-channel", false);
             properties.setCategoryMappings(Map.of("general", List.of(disabledCategoryMapping)));
@@ -347,7 +348,42 @@ class ConfigBasedRoutingPolicyTest {
             // When
             List<RoutingTarget> targets = routingPolicy.resolve("demo.test.event", "general");
 
-            assertThat(targets).isEmpty();
+            assertThat(targets).hasSize(1);
+            assertThat(targets.get(0).webhookKey()).isEqualTo("general-channel");
+        }
+
+        @Test
+        void shouldUseCategoryTargetsWhenTypeMappingResolvesNoValidTarget() {
+
+            PlatformMapping invalidTypeMapping = createMapping("slack", "non-existent-channel", true);
+            properties.setTypeMappings(Map.of("demo.server.error", List.of(invalidTypeMapping)));
+
+            PlatformMapping enabledCategoryMapping = createMapping("slack", "category-channel", true);
+            properties.setCategoryMappings(Map.of("general", List.of(enabledCategoryMapping)));
+
+            // When
+            List<RoutingTarget> targets = routingPolicy.resolve("demo.server.error", "general");
+
+            // Then
+            assertThat(targets).hasSize(1);
+            assertThat(targets.get(0).webhookKey()).isEqualTo("category-channel");
+        }
+
+        @Test
+        void shouldUseDefaultTargetsWhenCategoryMappingResolvesNoValidTarget() {
+
+            PlatformMapping invalidCategoryMapping = createMapping("slack", "non-existent-channel", true);
+            properties.setCategoryMappings(Map.of("general", List.of(invalidCategoryMapping)));
+
+            PlatformMapping enabledDefaultMapping = createMapping("slack", "general-channel", true);
+            properties.setDefaultMappings(List.of(enabledDefaultMapping));
+
+            // When
+            List<RoutingTarget> targets = routingPolicy.resolve("demo.test.event", "general");
+
+            // Then
+            assertThat(targets).hasSize(1);
+            assertThat(targets.get(0).webhookKey()).isEqualTo("general-channel");
         }
 
         @Test
