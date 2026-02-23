@@ -1,5 +1,6 @@
 package io.github.limehee.hookrouter.spring.config;
 
+import java.util.Map;
 import org.springframework.boot.autoconfigure.condition.ConditionMessage;
 import org.springframework.boot.autoconfigure.condition.ConditionOutcome;
 import org.springframework.boot.autoconfigure.condition.SpringBootCondition;
@@ -33,12 +34,19 @@ public final class WebhookRoutingMappingsConfiguredCondition extends SpringBootC
             return false;
         }
         for (PropertySource<?> propertySource : environment.getPropertySources()) {
-            if (!(propertySource instanceof EnumerablePropertySource<?> enumerablePropertySource)) {
+            if (propertySource instanceof EnumerablePropertySource<?> enumerablePropertySource) {
+                for (String propertyName : enumerablePropertySource.getPropertyNames()) {
+                    if (isRoutingMappingProperty(propertyName)) {
+                        return true;
+                    }
+                }
                 continue;
             }
-            for (String propertyName : enumerablePropertySource.getPropertyNames()) {
-                if (isRoutingMappingProperty(propertyName)) {
-                    return true;
+            if (propertySource.getSource() instanceof Map<?, ?> sourceMap) {
+                for (Object propertyNameObj : sourceMap.keySet()) {
+                    if (propertyNameObj instanceof String propertyName && isRoutingMappingProperty(propertyName)) {
+                        return true;
+                    }
                 }
             }
         }

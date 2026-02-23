@@ -26,6 +26,7 @@ import io.github.resilience4j.retry.RetryRegistry;
 import io.github.resilience4j.timelimiter.TimeLimiterRegistry;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
+import java.util.Map;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.BeanCreationException;
@@ -33,8 +34,21 @@ import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.env.PropertySource;
 
 class WebhookAutoConfigurationIntegrationTest {
+
+    static class NonEnumerableMapPropertySource extends PropertySource<Map<String, Object>> {
+
+        NonEnumerableMapPropertySource(String name, Map<String, Object> source) {
+            super(name, source);
+        }
+
+        @Override
+        public Object getProperty(String name) {
+            return source.get(name);
+        }
+    }
 
     private final ApplicationContextRunner contextRunner = new ApplicationContextRunner()
         .withConfiguration(AutoConfigurations.of(WebhookAutoConfiguration.class));
@@ -123,6 +137,26 @@ class WebhookAutoConfigurationIntegrationTest {
         void shouldVerifyExpectedContextWhenOnlyCategoryMappingsAreConfigured() {
             contextRunner
                 .withPropertyValues(categoryMappingOnlyProperties())
+                .run(context -> {
+                    assertThat(context).hasSingleBean(WebhookConfigProperties.class);
+                    assertThat(context).hasSingleBean(NotificationListener.class);
+                    assertThat(context).hasSingleBean(RoutingPolicy.class);
+                });
+        }
+
+        @Test
+        void shouldVerifyExpectedContextWhenRoutingMappingsComeFromNonEnumerablePropertySource() {
+            contextRunner
+                .withInitializer(context -> {
+                    Map<String, Object> properties = Map.of(
+                        "hookrouter.type-mappings[demo.server.error][0].platform", "slack",
+                        "hookrouter.type-mappings[demo.server.error][0].webhook", "error-channel",
+                        "hookrouter.platforms.slack.endpoints.error-channel.url", "https://hooks.slack.com/error"
+                    );
+                    PropertySource<?> nonEnumerable = new NonEnumerableMapPropertySource("nonEnumerableMappings",
+                        properties);
+                    context.getEnvironment().getPropertySources().addFirst(nonEnumerable);
+                })
                 .run(context -> {
                     assertThat(context).hasSingleBean(WebhookConfigProperties.class);
                     assertThat(context).hasSingleBean(NotificationListener.class);
