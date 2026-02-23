@@ -106,7 +106,7 @@ hookrouter:
 
   rate-limiter:
     enabled: true
-    limit-for-period: 20
+    limit-for-period: 20  # runtime default: 200
     limit-refresh-period: 1000
     timeout-duration: 0
 

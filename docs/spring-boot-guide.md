@@ -200,9 +200,13 @@ public class DeadLetterConfig {
 ```
 
 Without a `DeadLetterStore` bean, `hookrouter` falls back to logging dead-letter events only.
+At startup, `hookrouter` logs a warning in this mode to highlight that persistence/replay is not active.
 For full usage patterns (manual replay, scheduler behavior, status lifecycle), see [`dead-letter-guide.md`](dead-letter-guide.md).
 
 ## 6. Recommended Production Baseline
+
+Runtime defaults are intentionally safe for both local and production-like environments, but this section remains
+a stricter production baseline recommendation.
 
 ```yaml
 hookrouter:
@@ -224,7 +228,7 @@ hookrouter:
     success-threshold: 3
   rate-limiter:
     enabled: true
-    limit-for-period: 20
+    limit-for-period: 20  # runtime default: 200
     limit-refresh-period: 1000
     timeout-duration: 0
   bulkhead:

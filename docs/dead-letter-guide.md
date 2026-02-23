@@ -18,6 +18,8 @@ Notes:
   - `DeadLetterReprocessor` exists
   - `hookrouter.dead-letter.scheduler-enabled=true`
 - Reprocess marks an item `RESOLVED` only when replay delivery actually succeeds.
+- When `enabled=true` but no `DeadLetterStore` is configured, startup emits a warning and uses
+  `LoggingDeadLetterHandler` (log-only mode).
 
 ## 2. Configuration keys
 
