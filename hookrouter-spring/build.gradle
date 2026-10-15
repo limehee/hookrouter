@@ -16,4 +16,6 @@ dependencies {
     implementation libs.resilience4j.micrometer
 
     implementation libs.spring.boot.starter.actuator
+
+    integrationTestImplementation libs.test.resilience4j.spring.boot4
 }

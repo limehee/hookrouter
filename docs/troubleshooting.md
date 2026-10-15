@@ -19,6 +19,20 @@ Check:
 - sender platform alignment
 - dead-letter store/handler behavior
 
+## Application `resilience4j.*` settings are ignored
+
+Applies to `hookrouter-spring` 0.4.x and earlier together with `resilience4j-spring-boot`.
+
+Symptoms:
+
+- application bulkheads, rate limiters, or retries behave with `hookrouter.*` values
+- `/actuator/beans` shows the Resilience4j registries defined by `WebhookAutoConfiguration`
+- `/actuator/conditions` reports `BulkheadAutoConfiguration#bulkheadRegistry` (and the other registries) as not
+  matched because a registry bean already exists
+
+Fix: upgrade `hookrouter-spring`. Newer versions keep their registries in `WebhookResilienceRegistries`; see
+[Spring Boot Guide](spring-boot-guide.md#8-using-hookrouter-alongside-resilience4j-spring-boot).
+
 ## Context startup fails with `WebhookConfigValidationException`
 
 Check all validation groups:

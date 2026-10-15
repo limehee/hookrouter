@@ -1,6 +1,7 @@
 [versions]
 spring-boot = "4.0.2"
 resilience4j = "2.3.0"
+resilience4j-spring-boot = "2.4.0"
 jspecify = "1.0.0"
 
 [libraries]
@@ -20,3 +21,4 @@ resilience4j-micrometer = { module = "io.github.resilience4j:resilience4j-microm
 
 buildtools-jspecify = { module = "org.jspecify:jspecify", version.ref = "jspecify" }
 test-junit-platform-launcher = { module = "org.junit.platform:junit-platform-launcher" }
+test-resilience4j-spring-boot4 = { module = "io.github.resilience4j:resilience4j-spring-boot4", version.ref = "resilience4j-spring-boot" }

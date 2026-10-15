@@ -17,6 +17,8 @@ import io.github.limehee.hookrouter.spring.listener.NotificationListener;
 import io.github.limehee.hookrouter.spring.metrics.MicrometerWebhookMetrics;
 import io.github.limehee.hookrouter.spring.metrics.WebhookMetrics;
 import io.github.limehee.hookrouter.spring.publisher.NotificationPublisher;
+import io.github.limehee.hookrouter.spring.resilience.ResilienceResourceKey;
+import io.github.limehee.hookrouter.spring.resilience.WebhookResilienceRegistries;
 import io.github.limehee.hookrouter.spring.resilience.event.CircuitBreakerEventListener;
 import io.github.limehee.hookrouter.spring.routing.ConfigBasedRoutingPolicy;
 import io.github.resilience4j.bulkhead.BulkheadRegistry;
@@ -26,6 +28,7 @@ import io.github.resilience4j.retry.RetryRegistry;
 import io.github.resilience4j.timelimiter.TimeLimiterRegistry;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
+import java.time.Duration;
 import java.util.Map;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -178,16 +181,43 @@ class WebhookAutoConfigurationIntegrationTest {
     class Resilience4jRegistryBeanTest {
 
         @Test
-        void shouldVerifyExpectedContextWhenPropertyOverridesAreApplied() {
+        void shouldKeepResilience4jRegistriesOutOfApplicationContext() {
             contextRunner
                 .withPropertyValues(baseProperties())
                 .run(context -> {
-                    assertThat(context).hasSingleBean(CircuitBreakerRegistry.class);
-                    assertThat(context).hasSingleBean(RetryRegistry.class);
-                    assertThat(context).hasSingleBean(TimeLimiterRegistry.class);
-                    assertThat(context).hasSingleBean(RateLimiterRegistry.class);
-                    assertThat(context).hasSingleBean(BulkheadRegistry.class);
-                    assertThat(context).hasSingleBean(CircuitBreakerEventListener.class);
+                    assertThat(context).hasSingleBean(WebhookResilienceRegistries.class);
+                    assertThat(context).doesNotHaveBean(CircuitBreakerRegistry.class);
+                    assertThat(context).doesNotHaveBean(RetryRegistry.class);
+                    assertThat(context).doesNotHaveBean(TimeLimiterRegistry.class);
+                    assertThat(context).doesNotHaveBean(RateLimiterRegistry.class);
+                    assertThat(context).doesNotHaveBean(BulkheadRegistry.class);
+                    assertThat(context).doesNotHaveBean(CircuitBreakerEventListener.class);
+                });
+        }
+
+        @Test
+        void shouldBuildHookrouterRegistriesFromHookrouterProperties() {
+            contextRunner
+                .withPropertyValues(baseProperties())
+                .withPropertyValues(
+                    "hookrouter.circuit-breaker.failure-threshold=4",
+                    "hookrouter.retry.max-attempts=2",
+                    "hookrouter.timeout.duration=6500",
+                    "hookrouter.rate-limiter.limit-for-period=50",
+                    "hookrouter.bulkhead.max-concurrent-calls=3"
+                )
+                .run(context -> {
+                    WebhookResilienceRegistries registries = context.getBean(WebhookResilienceRegistries.class);
+
+                    assertThat(registries.circuitBreakerRegistry().getDefaultConfig().getSlidingWindowSize())
+                        .isEqualTo(4);
+                    assertThat(registries.retryRegistry().getDefaultConfig().getMaxAttempts()).isEqualTo(2);
+                    assertThat(registries.timeLimiterRegistry().getDefaultConfig().getTimeoutDuration())
+                        .isEqualTo(Duration.ofMillis(6500));
+                    assertThat(registries.rateLimiterRegistry().getDefaultConfig().getLimitForPeriod())
+                        .isEqualTo(50);
+                    assertThat(registries.bulkheadRegistry().getDefaultConfig().getMaxConcurrentCalls())
+                        .isEqualTo(3);
                 });
         }
 
@@ -512,6 +542,22 @@ class WebhookAutoConfigurationIntegrationTest {
                 .run(context -> {
                     assertThat(context).hasSingleBean(WebhookDispatcher.class);
                     assertThat(context).hasSingleBean(DeadLetterProcessor.class);
+                });
+        }
+
+        @Test
+        void shouldBindHookrouterResilience4jMetrics() {
+            contextRunner
+                .withPropertyValues(baseProperties())
+                .withUserConfiguration(MeterRegistryConfiguration.class)
+                .run(context -> {
+                    MeterRegistry meterRegistry = context.getBean(MeterRegistry.class);
+                    String resilienceKey = ResilienceResourceKey.of("slack", "general-channel");
+
+                    context.getBean(WebhookResilienceRegistries.class).bulkheadRegistry().bulkhead(resilienceKey);
+
+                    assertThat(meterRegistry.find("resilience4j.bulkhead.max.allowed.concurrent.calls")
+                        .tag("name", resilienceKey).gauge()).isNotNull();
                 });
         }
     }
