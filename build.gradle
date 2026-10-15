@@ -169,17 +169,15 @@ def apiBaselineVersionProvider = providers.gradleProperty('apiBaselineVersion')
 configure(publishedApiModules) {
     apply plugin: 'me.champeau.gradle.japicmp'
 
-    configurations {
-        apiCompatBaseline
-    }
-
+    // A dependency on the project's own group:name resolves to the project itself, so the baseline must come from
+    // a detached configuration to be fetched from Maven Central.
+    def apiCompatBaseline = configurations.detachedConfiguration()
+    apiCompatBaseline.transitive = false
     if (apiBaselineVersionProvider.present) {
-        dependencies {
-            apiCompatBaseline("${project.group}:${project.name}:${apiBaselineVersionProvider.get()}") {
-                transitive = false
-            }
-        }
+        apiCompatBaseline.dependencies.add(
+            dependencies.create("${project.group}:${project.name}:${apiBaselineVersionProvider.get()}"))
     }
+    def projectBuildDir = layout.buildDirectory.get().asFile
 
     tasks.register('apiCompatCheck', JapicmpTask) {
         group = 'verification'
@@ -187,13 +185,19 @@ configure(publishedApiModules) {
         dependsOn tasks.named('jar')
         dependsOn publishedApiModules.collect { it.tasks.named('jar') }
         onlyIf { apiBaselineVersionProvider.present }
-        oldClasspath.from(configurations.apiCompatBaseline)
+        oldClasspath.from(apiCompatBaseline)
         newClasspath.from(tasks.named('jar').flatMap { it.archiveFile })
         onlyModified = true
         onlyBinaryIncompatibleModified = true
         ignoreMissingClasses = true
         failOnModification = true
         txtOutputFile = layout.buildDirectory.file("reports/japicmp/${project.name}.txt").get().asFile
+        doFirst { task ->
+            def baselineFiles = task.oldClasspath.files
+            if (baselineFiles.isEmpty() || baselineFiles.any { it.toPath().startsWith(projectBuildDir.toPath()) }) {
+                throw new GradleException("${task.path}: API baseline did not resolve to a published artifact: ${baselineFiles}")
+            }
+        }
     }
 }
 
