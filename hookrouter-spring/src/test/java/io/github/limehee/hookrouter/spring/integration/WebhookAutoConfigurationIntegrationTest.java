@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import io.github.limehee.hookrouter.core.port.RoutingPolicy;
 import io.github.limehee.hookrouter.core.registry.FormatterRegistry;
 import io.github.limehee.hookrouter.core.registry.NotificationTypeRegistry;
+import io.github.limehee.hookrouter.spring.actuator.WebhookHealthIndicator;
 import io.github.limehee.hookrouter.spring.config.WebhookAutoConfiguration;
 import io.github.limehee.hookrouter.spring.config.WebhookConfigProperties;
 import io.github.limehee.hookrouter.spring.config.WebhookConfigResolver;
@@ -34,6 +35,14 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.BeanCreationException;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
+import org.springframework.boot.health.actuate.endpoint.CompositeHealthDescriptor;
+import org.springframework.boot.health.actuate.endpoint.HealthEndpoint;
+import org.springframework.boot.health.autoconfigure.actuate.endpoint.HealthEndpointAutoConfiguration;
+import org.springframework.boot.health.autoconfigure.contributor.HealthContributorAutoConfiguration;
+import org.springframework.boot.health.autoconfigure.registry.HealthContributorRegistryAutoConfiguration;
+import org.springframework.boot.health.contributor.Health;
+import org.springframework.boot.health.contributor.HealthIndicator;
+import org.springframework.boot.health.contributor.Status;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -629,6 +638,90 @@ class WebhookAutoConfigurationIntegrationTest {
                     assertThat(properties.getTypeMappings().get("demo.server.error")).hasSize(1);
                     assertThat(properties.getTypeMappings().get("demo.server.error").get(0).getPlatform())
                         .isEqualTo("slack");
+                });
+        }
+    }
+
+    @Nested
+    class HealthIndicatorTest {
+
+        private final ApplicationContextRunner healthEndpointRunner = contextRunner
+            .withConfiguration(AutoConfigurations.of(
+                HealthContributorAutoConfiguration.class,
+                HealthContributorRegistryAutoConfiguration.class,
+                HealthEndpointAutoConfiguration.class
+            ));
+
+        @Test
+        void shouldNotRegisterWebhookHealthIndicatorByDefault() {
+            contextRunner
+                .withPropertyValues(baseProperties())
+                .run(context -> assertThat(context).doesNotHaveBean("webhookHealthIndicator"));
+        }
+
+        @Test
+        void shouldNotRegisterWebhookHealthIndicatorWhenDisabled() {
+            contextRunner
+                .withPropertyValues(baseProperties())
+                .withPropertyValues("management.health.webhook.enabled=false")
+                .run(context -> assertThat(context).doesNotHaveBean("webhookHealthIndicator"));
+        }
+
+        @Test
+        void shouldRegisterWebhookHealthIndicatorWhenEnabled() {
+            contextRunner
+                .withPropertyValues(baseProperties())
+                .withPropertyValues("management.health.webhook.enabled=true")
+                .run(context -> {
+                    assertThat(context).hasBean("webhookHealthIndicator");
+                    HealthIndicator indicator = context.getBean("webhookHealthIndicator", HealthIndicator.class);
+                    assertThat(indicator).isInstanceOf(WebhookHealthIndicator.class);
+                    assertThat(indicator.health().getStatus()).isEqualTo(Status.UP);
+
+                    context.getBean(WebhookResilienceRegistries.class).circuitBreakerRegistry()
+                        .circuitBreaker(ResilienceResourceKey.of("slack", "general-channel")).transitionToOpenState();
+
+                    assertThat(indicator.health().getStatus()).isEqualTo(Status.DOWN);
+                });
+        }
+
+        @Test
+        void shouldBackOffWhenUserDefinesWebhookHealthIndicator() {
+            HealthIndicator userIndicator = () -> Health.up().withDetail("source", "user").build();
+
+            contextRunner
+                .withPropertyValues(baseProperties())
+                .withPropertyValues("management.health.webhook.enabled=true")
+                .withBean("webhookHealthIndicator", HealthIndicator.class, () -> userIndicator)
+                .run(context -> assertThat(context.getBean("webhookHealthIndicator")).isSameAs(userIndicator));
+        }
+
+        @Test
+        void shouldExposeWebhookComponentInHealthEndpoint() {
+            healthEndpointRunner
+                .withPropertyValues(baseProperties())
+                .withPropertyValues(
+                    "hookrouter.platforms.slack.endpoints.ops-channel.url=https://hooks.slack.com/ops",
+                    "management.health.webhook.enabled=true"
+                )
+                .run(context -> {
+                    HealthEndpoint healthEndpoint = context.getBean(HealthEndpoint.class);
+                    CircuitBreakerRegistry registry = context.getBean(WebhookResilienceRegistries.class)
+                        .circuitBreakerRegistry();
+
+                    registry.circuitBreaker(ResilienceResourceKey.of("slack", "general-channel"))
+                        .transitionToOpenState();
+
+                    CompositeHealthDescriptor partiallyOpen = (CompositeHealthDescriptor) healthEndpoint.health();
+                    assertThat(partiallyOpen.getComponents().get("webhook").getStatus())
+                        .isEqualTo(new Status("DEGRADED"));
+                    assertThat(partiallyOpen.getStatus()).isEqualTo(Status.UP);
+
+                    registry.circuitBreaker(ResilienceResourceKey.of("slack", "ops-channel")).transitionToOpenState();
+
+                    CompositeHealthDescriptor allOpen = (CompositeHealthDescriptor) healthEndpoint.health();
+                    assertThat(allOpen.getComponents().get("webhook").getStatus()).isEqualTo(Status.DOWN);
+                    assertThat(allOpen.getStatus()).isEqualTo(Status.DOWN);
                 });
         }
     }

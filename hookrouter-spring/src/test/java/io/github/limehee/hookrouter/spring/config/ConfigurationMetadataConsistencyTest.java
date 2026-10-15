@@ -51,7 +51,8 @@ class ConfigurationMetadataConsistencyTest {
         "hookrouter.async.max-pool-size",
         "hookrouter.async.queue-capacity",
         "hookrouter.async.thread-name-prefix",
-        "hookrouter.async.await-termination-seconds"
+        "hookrouter.async.await-termination-seconds",
+        "management.health.webhook.enabled"
     );
 
     @Test
@@ -178,6 +179,7 @@ class ConfigurationMetadataConsistencyTest {
         expectedDefaults.put("hookrouter.async.thread-name-prefix", properties.getAsync().getThreadNamePrefix());
         expectedDefaults.put("hookrouter.async.await-termination-seconds",
             properties.getAsync().getAwaitTerminationSeconds());
+        expectedDefaults.put("management.health.webhook.enabled", false);
         return expectedDefaults;
     }
 

@@ -32,6 +32,8 @@ Routing resolution fallback:
 
 - `hookrouter.dead-letter.*`
 - `hookrouter.async.*`
+- `management.health.webhook.enabled` (default `false`): registers the webhook health indicator; see
+  [Spring Boot Guide](spring-boot-guide.md#9-webhook-health-indicator)
 
 ## 4. Cross-field Validation Rules
 

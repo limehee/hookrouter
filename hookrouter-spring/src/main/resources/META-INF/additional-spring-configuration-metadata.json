@@ -199,6 +199,12 @@
       "type": "java.lang.Integer",
       "defaultValue": 30,
       "description": "Shutdown await timeout in seconds. Must be >= 0."
+    },
+    {
+      "name": "management.health.webhook.enabled",
+      "type": "java.lang.Boolean",
+      "defaultValue": false,
+      "description": "Whether to register the hookrouter webhook health indicator. Disabled by default. When enabled, it reports DOWN once every configured webhook circuit breaker is open, which makes the aggregate application health DOWN."
     }
   ],
   "hints": []
