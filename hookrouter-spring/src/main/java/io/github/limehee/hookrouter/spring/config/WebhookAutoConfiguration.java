@@ -28,6 +28,7 @@ import io.github.limehee.hookrouter.spring.metrics.NoOpWebhookMetrics;
 import io.github.limehee.hookrouter.spring.metrics.WebhookMetrics;
 import io.github.limehee.hookrouter.spring.publisher.NotificationPublisher;
 import io.github.limehee.hookrouter.spring.resilience.ResilienceResourceKey;
+import io.github.limehee.hookrouter.spring.resilience.WebhookResilienceRegistries;
 import io.github.limehee.hookrouter.spring.resilience.WebhookRetryFactory;
 import io.github.limehee.hookrouter.spring.resilience.event.CircuitBreakerEventListener;
 import io.github.limehee.hookrouter.spring.resilience.event.RateLimitEventListener;
@@ -108,20 +109,29 @@ public class WebhookAutoConfiguration {
     }
 
     @Bean
-    public CircuitBreakerEventListener circuitBreakerEventListener(ApplicationEventPublisher eventPublisher) {
-        return new CircuitBreakerEventListener(eventPublisher);
-    }
-
-    @Bean
     @ConditionalOnMissingBean(RateLimitEventListener.class)
-    public RateLimitEventListener rateLimitEventListener(RateLimiterRegistry rateLimiterRegistry,
+    public RateLimitEventListener rateLimitEventListener(WebhookResilienceRegistries resilienceRegistries,
         ObjectProvider<WebhookMetrics> metricsProvider) {
         WebhookMetrics metrics = metricsProvider.getIfAvailable(() -> NoOpWebhookMetrics.INSTANCE);
-        return new RateLimitEventListener(rateLimiterRegistry, metrics);
+        return new RateLimitEventListener(resilienceRegistries.rateLimiterRegistry(), metrics);
     }
 
+    // The registries and the circuit breaker listener are deliberately not exposed as Resilience4j-typed beans:
+    // resilience4j-spring-boot backs off when a *Registry bean exists and attaches every
+    // RegistryEventConsumer<CircuitBreaker> bean to the application's registry.
     @Bean
-    public CircuitBreakerRegistry circuitBreakerRegistry(WebhookConfigProperties properties,
+    public WebhookResilienceRegistries webhookResilienceRegistries(WebhookConfigProperties properties,
+        ApplicationEventPublisher eventPublisher) {
+        CircuitBreakerEventListener circuitBreakerEventListener = new CircuitBreakerEventListener(eventPublisher);
+        return new WebhookResilienceRegistries(
+            createCircuitBreakerRegistry(properties, circuitBreakerEventListener),
+            WebhookRetryFactory.createRegistry(properties.getRetry()),
+            createTimeLimiterRegistry(properties),
+            createRateLimiterRegistry(properties),
+            createBulkheadRegistry(properties));
+    }
+
+    private static CircuitBreakerRegistry createCircuitBreakerRegistry(WebhookConfigProperties properties,
         CircuitBreakerEventListener eventListener) {
         WebhookConfigProperties.CircuitBreakerProperties cbProps = properties.getCircuitBreaker();
         int failureThreshold = clampInt(cbProps.getFailureThreshold(), 1, Integer.MAX_VALUE);
@@ -136,14 +146,7 @@ public class WebhookAutoConfiguration {
         return CircuitBreakerRegistry.of(config, List.of(eventListener));
     }
 
-    @Bean
-    public RetryRegistry retryRegistry(WebhookConfigProperties properties) {
-        WebhookConfigProperties.RetryProperties retryProperties = properties.getRetry();
-        return WebhookRetryFactory.createRegistry(retryProperties);
-    }
-
-    @Bean
-    public TimeLimiterRegistry timeLimiterRegistry(WebhookConfigProperties properties) {
+    private static TimeLimiterRegistry createTimeLimiterRegistry(WebhookConfigProperties properties) {
         WebhookConfigProperties.TimeoutProperties timeoutProps = properties.getTimeout();
         long durationMillis = clampLong(timeoutProps.getDuration(), 1L, Long.MAX_VALUE);
         TimeLimiterConfig config = TimeLimiterConfig.custom().timeoutDuration(Duration.ofMillis(durationMillis))
@@ -151,8 +154,7 @@ public class WebhookAutoConfiguration {
         return TimeLimiterRegistry.of(config);
     }
 
-    @Bean
-    public RateLimiterRegistry rateLimiterRegistry(WebhookConfigProperties properties) {
+    private static RateLimiterRegistry createRateLimiterRegistry(WebhookConfigProperties properties) {
         WebhookConfigProperties.RateLimiterProperties rlProps = properties.getRateLimiter();
         int limitForPeriod = Math.max(rlProps.getLimitForPeriod(), 1);
         long refreshPeriodMs = Math.max(rlProps.getLimitRefreshPeriod(), 1L);
@@ -163,8 +165,7 @@ public class WebhookAutoConfiguration {
         return RateLimiterRegistry.of(config);
     }
 
-    @Bean
-    public BulkheadRegistry bulkheadRegistry(WebhookConfigProperties properties) {
+    private static BulkheadRegistry createBulkheadRegistry(WebhookConfigProperties properties) {
         WebhookConfigProperties.BulkheadProperties bhProps = properties.getBulkhead();
         int maxConcurrentCalls = Math.max(bhProps.getMaxConcurrentCalls(), 1);
         long maxWaitDurationMs = Math.max(bhProps.getMaxWaitDuration(), 0L);
@@ -237,9 +238,63 @@ public class WebhookAutoConfiguration {
 
     @Bean
     public WebhookDispatcher webhookDispatcher(WebhookConfigResolver configResolver,
+        WebhookResilienceRegistries resilienceRegistries,
+        @Qualifier("webhookTaskExecutor") Executor webhookTaskExecutor,
+        ObjectProvider<WebhookMetrics> metricsProvider,
+        DeadLetterProcessor deadLetterProcessor, ApplicationEventPublisher eventPublisher) {
+        WebhookMetrics metrics = metricsProvider.getIfAvailable(() -> NoOpWebhookMetrics.INSTANCE);
+        return new WebhookDispatcher(configResolver, resilienceRegistries.circuitBreakerRegistry(),
+            resilienceRegistries.retryRegistry(), resilienceRegistries.timeLimiterRegistry(),
+            resilienceRegistries.rateLimiterRegistry(), resilienceRegistries.bulkheadRegistry(), webhookTaskExecutor,
+            metrics, deadLetterProcessor, eventPublisher);
+    }
+
+    // 0.4.x bean methods kept only for binary compatibility. They are no longer @Bean methods, so Spring never
+    // calls them and none of their results are registered in the application context.
+
+    @Deprecated(since = "0.5.0", forRemoval = true)
+    public CircuitBreakerEventListener circuitBreakerEventListener(ApplicationEventPublisher eventPublisher) {
+        return new CircuitBreakerEventListener(eventPublisher);
+    }
+
+    @Deprecated(since = "0.5.0", forRemoval = true)
+    public RateLimitEventListener rateLimitEventListener(RateLimiterRegistry rateLimiterRegistry,
+        ObjectProvider<WebhookMetrics> metricsProvider) {
+        WebhookMetrics metrics = metricsProvider.getIfAvailable(() -> NoOpWebhookMetrics.INSTANCE);
+        return new RateLimitEventListener(rateLimiterRegistry, metrics);
+    }
+
+    @Deprecated(since = "0.5.0", forRemoval = true)
+    public CircuitBreakerRegistry circuitBreakerRegistry(WebhookConfigProperties properties,
+        CircuitBreakerEventListener eventListener) {
+        return createCircuitBreakerRegistry(properties, eventListener);
+    }
+
+    @Deprecated(since = "0.5.0", forRemoval = true)
+    public RetryRegistry retryRegistry(WebhookConfigProperties properties) {
+        return WebhookRetryFactory.createRegistry(properties.getRetry());
+    }
+
+    @Deprecated(since = "0.5.0", forRemoval = true)
+    public TimeLimiterRegistry timeLimiterRegistry(WebhookConfigProperties properties) {
+        return createTimeLimiterRegistry(properties);
+    }
+
+    @Deprecated(since = "0.5.0", forRemoval = true)
+    public RateLimiterRegistry rateLimiterRegistry(WebhookConfigProperties properties) {
+        return createRateLimiterRegistry(properties);
+    }
+
+    @Deprecated(since = "0.5.0", forRemoval = true)
+    public BulkheadRegistry bulkheadRegistry(WebhookConfigProperties properties) {
+        return createBulkheadRegistry(properties);
+    }
+
+    @Deprecated(since = "0.5.0", forRemoval = true)
+    public WebhookDispatcher webhookDispatcher(WebhookConfigResolver configResolver,
         CircuitBreakerRegistry circuitBreakerRegistry, RetryRegistry retryRegistry,
         TimeLimiterRegistry timeLimiterRegistry, RateLimiterRegistry rateLimiterRegistry,
-        BulkheadRegistry bulkheadRegistry, @Qualifier("webhookTaskExecutor") Executor webhookTaskExecutor,
+        BulkheadRegistry bulkheadRegistry, Executor webhookTaskExecutor,
         ObjectProvider<WebhookMetrics> metricsProvider,
         DeadLetterProcessor deadLetterProcessor, ApplicationEventPublisher eventPublisher) {
         WebhookMetrics metrics = metricsProvider.getIfAvailable(() -> NoOpWebhookMetrics.INSTANCE);
@@ -260,14 +315,15 @@ public class WebhookAutoConfiguration {
 
         @Bean
         public Boolean resilience4jMetricsBinding(MeterRegistry meterRegistry,
-            CircuitBreakerRegistry circuitBreakerRegistry, RetryRegistry retryRegistry,
-            TimeLimiterRegistry timeLimiterRegistry, RateLimiterRegistry rateLimiterRegistry,
-            BulkheadRegistry bulkheadRegistry) {
-            TaggedCircuitBreakerMetrics.ofCircuitBreakerRegistry(circuitBreakerRegistry).bindTo(meterRegistry);
-            TaggedRetryMetrics.ofRetryRegistry(retryRegistry).bindTo(meterRegistry);
-            TaggedTimeLimiterMetrics.ofTimeLimiterRegistry(timeLimiterRegistry).bindTo(meterRegistry);
-            TaggedRateLimiterMetrics.ofRateLimiterRegistry(rateLimiterRegistry).bindTo(meterRegistry);
-            TaggedBulkheadMetrics.ofBulkheadRegistry(bulkheadRegistry).bindTo(meterRegistry);
+            WebhookResilienceRegistries resilienceRegistries) {
+            TaggedCircuitBreakerMetrics.ofCircuitBreakerRegistry(resilienceRegistries.circuitBreakerRegistry())
+                .bindTo(meterRegistry);
+            TaggedRetryMetrics.ofRetryRegistry(resilienceRegistries.retryRegistry()).bindTo(meterRegistry);
+            TaggedTimeLimiterMetrics.ofTimeLimiterRegistry(resilienceRegistries.timeLimiterRegistry())
+                .bindTo(meterRegistry);
+            TaggedRateLimiterMetrics.ofRateLimiterRegistry(resilienceRegistries.rateLimiterRegistry())
+                .bindTo(meterRegistry);
+            TaggedBulkheadMetrics.ofBulkheadRegistry(resilienceRegistries.bulkheadRegistry()).bindTo(meterRegistry);
             return Boolean.TRUE;
         }
     }
@@ -278,13 +334,14 @@ public class WebhookAutoConfiguration {
 
         @Bean
         @ConditionalOnMissingBean(name = "webhookHealthIndicator")
-        public HealthIndicator webhookHealthIndicator(CircuitBreakerRegistry circuitBreakerRegistry,
+        public HealthIndicator webhookHealthIndicator(WebhookResilienceRegistries resilienceRegistries,
             WebhookConfigProperties properties, Optional<DeadLetterStore> deadLetterStore) {
 
             Set<String> webhookKeys = properties.getPlatforms().entrySet().stream().flatMap(entry -> entry.getValue()
                 .getEndpoints().keySet().stream().map(webhookKey -> ResilienceResourceKey.of(entry.getKey(), webhookKey)))
                 .collect(Collectors.toSet());
-            return new WebhookHealthIndicator(circuitBreakerRegistry, webhookKeys, deadLetterStore.orElse(null));
+            return new WebhookHealthIndicator(resilienceRegistries.circuitBreakerRegistry(), webhookKeys,
+                deadLetterStore.orElse(null));
         }
     }
 

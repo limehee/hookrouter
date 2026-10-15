@@ -265,3 +265,56 @@ hookrouter:
   bulkhead:
     enabled: false
 ```
+
+## 8. Using hookrouter alongside resilience4j-spring-boot
+
+`hookrouter` keeps its Resilience4j registries private. It registers a single `WebhookResilienceRegistries` bean
+and does not register `CircuitBreakerRegistry`, `RetryRegistry`, `TimeLimiterRegistry`, `RateLimiterRegistry`, or
+`BulkheadRegistry` beans. When `resilience4j-spring-boot` is on the classpath, its auto-configuration therefore
+creates the application's registries from `resilience4j.*` as usual.
+
+- `hookrouter.*` controls webhook delivery only.
+- `resilience4j.*` controls the application's own instances (`@Bulkhead`, `@RateLimiter`, `@Retry`, ...) only.
+- `CircuitBreakerStateChangedEvent` is published for hookrouter webhook circuit breakers only.
+
+To inspect hookrouter's own instances (keyed as `<platform>:<webhook>`), inject `WebhookResilienceRegistries`:
+
+```java
+import io.github.limehee.hookrouter.spring.resilience.ResilienceResourceKey;
+import io.github.limehee.hookrouter.spring.resilience.WebhookResilienceRegistries;
+import io.github.resilience4j.circuitbreaker.CircuitBreaker;
+import org.springframework.stereotype.Component;
+
+@Component
+public class WebhookCircuitInspector {
+
+    private final WebhookResilienceRegistries registries;
+
+    public WebhookCircuitInspector(WebhookResilienceRegistries registries) {
+        this.registries = registries;
+    }
+
+    public CircuitBreaker.State state(String platform, String webhook) {
+        return registries.circuitBreakerRegistry()
+            .find(ResilienceResourceKey.of(platform, webhook))
+            .map(CircuitBreaker::getState)
+            .orElse(CircuitBreaker.State.CLOSED);
+    }
+}
+```
+
+### Migrating from 0.4.x
+
+Up to 0.4.x, `hookrouter` registered the five registries above as application-wide beans. With
+`resilience4j-spring-boot` present, that made its registry auto-configuration back off, so the application's
+`resilience4j.*` settings were silently replaced by `hookrouter.*` values.
+
+- Code that injected `CircuitBreakerRegistry` (or another registry type) to reach hookrouter's instances must inject
+  `WebhookResilienceRegistries` instead. Without `resilience4j-spring-boot`, such an injection point now fails at
+  startup; with it, it now receives the application's registry, which does not contain hookrouter's instances.
+- A custom `RateLimitEventListener` bean must be built with `WebhookResilienceRegistries#rateLimiterRegistry()`.
+- `CircuitBreakerEventListener` is no longer a bean.
+- Application instances now use their `resilience4j.*` values (or Resilience4j defaults) instead of `hookrouter.*`
+  values. Review those settings; for example, stricter bulkhead or rate-limiter values start rejecting calls.
+- Resilience4j actuator endpoints and health indicators no longer list hookrouter's instances. When a
+  `MeterRegistry` is present, `hookrouter` still binds Resilience4j meters for its own instances.

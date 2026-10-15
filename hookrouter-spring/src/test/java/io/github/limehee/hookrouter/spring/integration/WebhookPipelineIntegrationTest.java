@@ -14,6 +14,7 @@ import io.github.limehee.hookrouter.spring.deadletter.DeadLetterHandler;
 import io.github.limehee.hookrouter.spring.deadletter.DeadLetterHandler.DeadLetter;
 import io.github.limehee.hookrouter.spring.publisher.NotificationPublisher;
 import io.github.limehee.hookrouter.spring.resilience.ResilienceResourceKey;
+import io.github.limehee.hookrouter.spring.resilience.WebhookResilienceRegistries;
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
 import java.time.Duration;
@@ -317,7 +318,8 @@ class WebhookPipelineIntegrationTest {
             // When & Then
             contextRunner.run(context -> {
                 NotificationPublisher publisher = context.getBean(NotificationPublisher.class);
-                CircuitBreakerRegistry registry = context.getBean(CircuitBreakerRegistry.class);
+                CircuitBreakerRegistry registry = context.getBean(WebhookResilienceRegistries.class)
+                    .circuitBreakerRegistry();
                 CircuitBreaker circuitBreaker = registry.circuitBreaker(
                     ResilienceResourceKey.of("slack", "test-channel")
                 );
@@ -357,7 +359,8 @@ class WebhookPipelineIntegrationTest {
 
             // When & Then
             contextRunner.run(context -> {
-                CircuitBreakerRegistry registry = context.getBean(CircuitBreakerRegistry.class);
+                CircuitBreakerRegistry registry = context.getBean(WebhookResilienceRegistries.class)
+                    .circuitBreakerRegistry();
                 CircuitBreaker circuitBreaker = registry.circuitBreaker(
                     ResilienceResourceKey.of("slack", "test-channel")
                 );
@@ -401,7 +404,8 @@ class WebhookPipelineIntegrationTest {
 
             // When & Then
             contextRunner.run(context -> {
-                CircuitBreakerRegistry registry = context.getBean(CircuitBreakerRegistry.class);
+                CircuitBreakerRegistry registry = context.getBean(WebhookResilienceRegistries.class)
+                    .circuitBreakerRegistry();
                 CircuitBreaker circuitBreaker = registry.circuitBreaker(
                     ResilienceResourceKey.of("slack", "test-channel")
                 );

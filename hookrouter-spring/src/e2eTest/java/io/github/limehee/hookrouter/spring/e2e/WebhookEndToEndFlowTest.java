@@ -15,6 +15,7 @@ import io.github.limehee.hookrouter.spring.deadletter.DeadLetterStore.DeadLetter
 import io.github.limehee.hookrouter.spring.deadletter.InMemoryDeadLetterStore;
 import io.github.limehee.hookrouter.spring.publisher.NotificationPublisher;
 import io.github.limehee.hookrouter.spring.resilience.ResilienceResourceKey;
+import io.github.limehee.hookrouter.spring.resilience.WebhookResilienceRegistries;
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
 import io.micrometer.core.instrument.Counter;
@@ -129,7 +130,8 @@ class WebhookEndToEndFlowTest {
         try (ConfigurableApplicationContext context = startContext(circuitBreakerProperties())) {
             StatefulWebhookSender sender = context.getBean(StatefulWebhookSender.class);
             NotificationPublisher publisher = context.getBean(NotificationPublisher.class);
-            CircuitBreakerRegistry circuitBreakerRegistry = context.getBean(CircuitBreakerRegistry.class);
+            CircuitBreakerRegistry circuitBreakerRegistry = context.getBean(WebhookResilienceRegistries.class)
+                .circuitBreakerRegistry();
             MeterRegistry meterRegistry = context.getBean(MeterRegistry.class);
 
             sender.setMode(SenderMode.NON_RETRYABLE_FAILURE);
