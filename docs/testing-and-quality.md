@@ -25,5 +25,5 @@ API compatibility:
 
 - `apiBaselineVersion` must be a version published to Maven Central; the baseline jars are downloaded from there.
   The check fails if the baseline resolves to this build's own jar instead.
-- CI compares against the newest `v*` tag other than `v<version>` from `gradle.properties`.
+- CI compares against the newest `v*` tag, or the one before it when the commit under test is that tagged release.
 - The publish workflow compares the tag being released against the previous release tag.

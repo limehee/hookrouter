@@ -42,8 +42,16 @@ jobs:
         if: matrix.java == '17'
         shell: bash
         run: |
-          PROJECT_VERSION=$(grep '^version=' gradle.properties | cut -d= -f2)
-          BASELINE_TAG=$(git tag --list 'v*' --sort=-v:refname | grep -Fxv "v${PROJECT_VERSION}" | head -n 1 || true)
+          # Compare against the newest release, unless that release is the commit under test
+          # (the release commit itself, whose artifacts may not be on Maven Central yet).
+          HEAD_SHA=$(git rev-parse HEAD)
+          BASELINE_TAG=""
+          for TAG in $(git tag --list 'v*' --sort=-v:refname); do
+            if [ "$(git rev-list -n 1 "${TAG}")" != "${HEAD_SHA}" ]; then
+              BASELINE_TAG="${TAG}"
+              break
+            fi
+          done
           if [ -z "${BASELINE_TAG}" ]; then
             echo "No release tag found. Skipping apiCompat."
             exit 0
