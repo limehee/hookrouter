@@ -318,3 +318,36 @@ Up to 0.4.x, `hookrouter` registered the five registries above as application-wi
   values. Review those settings; for example, stricter bulkhead or rate-limiter values start rejecting calls.
 - Resilience4j actuator endpoints and health indicators no longer list hookrouter's instances. When a
   `MeterRegistry` is present, `hookrouter` still binds Resilience4j meters for its own instances.
+
+## 9. Webhook health indicator
+
+`hookrouter` can contribute a `webhook` component to the health endpoint. It is disabled by default; enable it with:
+
+```yaml
+management:
+  health:
+    webhook:
+      enabled: true
+```
+
+Status of the `webhook` component, based on the circuit breakers of every configured `<platform>:<webhook>`:
+
+| Status | When |
+| --- | --- |
+| `UP` | no monitored circuit breaker is open or half-open, or no webhook endpoint is configured |
+| `DEGRADED` | at least one, but not every, circuit breaker is open, forced open, or half-open |
+| `DOWN` | every monitored circuit breaker is open or forced open |
+
+Details include each circuit breaker state and the open/half-open/closed counts, plus dead-letter counts by status when a
+`DeadLetterStore` bean is registered. With `hookrouter.circuit-breaker.enabled=false`, every circuit reports `CLOSED`.
+
+Before enabling it, check how the status is aggregated:
+
+- `DEGRADED` is not part of Spring Boot's default status order, so it does not change the overall status. Add it to
+  `management.endpoint.health.status.order` (and `management.endpoint.health.status.http-mapping`) if it should.
+- `DOWN` makes the overall `/actuator/health` status `DOWN` (HTTP 503 by default). With a single webhook, one webhook
+  outage is enough. If a load balancer or orchestrator checks `/actuator/health`, point it at a health group that does
+  not include `webhook` (for example the liveness/readiness probe groups), or define such a group with
+  `management.endpoint.health.group.*`.
+
+To provide your own indicator instead, register a bean named `webhookHealthIndicator`.
